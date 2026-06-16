@@ -1,0 +1,821 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hazy Space Ranger Studios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anta&family=Montserrat:wght@400;500&family=Outfit:wght@200;300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js"}}</script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.9);overflow-x:hidden;min-height:100vh}
+
+/* ===================== PARTICLE CANVAS ===================== */
+#particle-canvas,
+#shooting-stars{
+  position:fixed;inset:0;z-index:0;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 2s ease;
+}
+#particle-canvas.visible,
+#shooting-stars.visible{
+  opacity:1;
+}
+/* Right-side stripes sit above the starfield, below the content/nav */
+#stripes-canvas{
+  position:fixed;inset:0;z-index:1;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 1.2s ease;
+}
+#stripes-canvas.visible{opacity:1}
+
+/* ===================== NAV BAR ===================== */
+.nav{
+  position:sticky;top:0;z-index:20;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px;background:#050505;width:100%;
+}
+.nav-logo{width:154px;display:flex;align-items:center;flex-shrink:0;cursor:pointer}
+.nav-logo img{height:32px;width:auto;transition:filter .3s}
+.nav-logo:hover img{filter:brightness(1.53)}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{font-family:'Anta',sans-serif;font-size:20px;color:#a7a7a7;text-decoration:none;transition:color .3s;cursor:pointer;display:flex;flex-direction:column;align-items:center}
+.nav-links a::after{content:'';display:block;width:100%;height:2px;transform:scaleX(0);transition:transform .3s}
+.nav-links a:hover{color:#fff}
+.nav-links a:hover::after{transform:scaleX(1)}
+.nav-links a[href="#games"]::after{background:#360084}
+.nav-links a[href="#shop"]::after{background:#8F0178}
+.nav-links a[href="#about"]::after{background:#DF1A58}
+.nav-links a[href="#crew"]::after{background:#F5B345}
+
+/* CTA button */
+.nav-cta{font-family:'Anta',sans-serif;font-size:20px;padding:12px;background:none;color:#a7a7a7;border:1px solid #a7a7a7;text-decoration:none;transition:color .3s, border-color .3s;cursor:pointer;position:relative;overflow:hidden}
+.nav-cta span{position:relative;z-index:1}
+.nav-cta:hover{color:#fff;border-color:#fff}
+.nav-cta .stripe{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;transition:transform .4s ease}
+.nav-cta .stripe svg{display:block;width:100%;height:100%}
+.nav-cta .stripe-1{transform:translate(-33.3%,-100%)}
+.nav-cta:hover .stripe-1{transform:translate(0,0)}
+.nav-cta .stripe-2{transform:translate(33.3%,100%)}
+.nav-cta:hover .stripe-2{transform:translate(0,0)}
+.nav-cta .stripe-3{transform:translate(-33.3%,-100%)}
+.nav-cta:hover .stripe-3{transform:translate(0,0)}
+.nav-cta .stripe-4{transform:translate(33.3%,100%)}
+.nav-cta:hover .stripe-4{transform:translate(0,0)}
+.nav-cta .stripe-1{transition-delay:0s}
+.nav-cta .stripe-2{transition-delay:.06s}
+.nav-cta .stripe-3{transition-delay:.12s}
+.nav-cta .stripe-4{transition-delay:.18s}
+
+/* ===================== HERO SECTION ===================== */
+.hero{
+  position:relative;
+  width:100%;
+  height:100vh;
+  overflow:visible;
+  background:transparent;
+  padding:0 160px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-start;
+}
+
+/* Hero content: badge, text, chevron stacked and left-aligned */
+.hero-content{
+  position:relative;
+  z-index:2;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  max-width:896px;
+  width:100%;
+}
+
+/* Static badge logo above the headline */
+.hero-logo{
+  position:relative;
+  width:300px;height:301px;
+  margin-bottom:32px;
+  opacity:0;
+  transform:translateY(12px) scale(.96);
+  transition:opacity .9s ease, transform .9s cubic-bezier(.22,1,.36,1);
+}
+.hero-logo.visible{opacity:1;transform:none}
+.hero-logo img{display:block;width:100%;height:100%}
+
+.hero-text{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  color:#fff;
+  opacity:0;
+}
+.hero-text.visible{opacity:1}
+
+.hero-headline{
+  font-family:'Anta',sans-serif;
+  font-size:64px;
+  white-space:nowrap;
+  line-height:normal;
+  overflow:hidden;
+  color:#fff;
+  text-shadow:0 0 8px rgba(255,255,255,.6),0 0 20px rgba(255,255,255,.25);
+  transition:text-shadow .3s ease;
+}
+.hero-headline.done{
+  text-shadow:none;
+}
+.hero-body{
+  font-family:'Montserrat',sans-serif;
+  font-size:32px;
+  font-weight:400;
+  line-height:normal;
+  max-width:896px;
+  overflow:hidden;
+  color:#fff;
+  text-shadow:0 0 8px rgba(255,255,255,.6),0 0 20px rgba(255,255,255,.25);
+  transition:text-shadow .3s ease;
+}
+.hero-body.done{
+  text-shadow:none;
+}
+.hero-headline .cursor,
+.hero-body .cursor{
+  display:inline-block;
+  width:.55em;
+  height:1.1em;
+  background:#fff;
+  margin-left:1px;
+  vertical-align:text-bottom;
+  animation:blink .5s step-end infinite;
+}
+@keyframes blink{
+  50%{opacity:0}
+}
+
+/* Chevron — centered under the text block */
+.hero-chevron{
+  align-self:center;
+  margin-top:32px;
+  position:relative;
+  z-index:2;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity .5s ease;
+}
+.hero-chevron.visible{opacity:.9}
+.hero-chevron:hover{opacity:1}
+.hero-chevron svg{width:60px;height:60px;display:block}
+
+/* ===================== UNDER CONSTRUCTION ===================== */
+.under-construction{
+  position:relative;
+  width:100%;
+  height:900px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+}
+.under-construction h2{
+  font-family:'Anta',sans-serif;
+  font-size:64px;
+  font-weight:400;
+  color:#fff;
+  white-space:nowrap;
+}
+
+/* ===================== RESPONSIVE ===================== */
+@media(max-width:768px){
+  .nav{padding:16px 20px}
+  .nav-links{display:none}
+  .nav-cta{font-size:16px;padding:10px}
+  .hero{padding:0 24px;min-height:600px}
+  .hero-logo{width:180px;height:181px;margin-bottom:20px}
+  .hero-headline{font-size:28px;white-space:normal}
+  .hero-body{font-size:16px}
+  .under-construction h2{font-size:36px}
+  .hero-chevron svg{width:40px;height:40px}
+}
+</style>
+</head>
+<body>
+
+<!-- Particle Background -->
+<canvas id="particle-canvas"></canvas>
+<canvas id="shooting-stars"></canvas>
+<!-- Right-side racing stripes (halftone formation) -->
+<canvas id="stripes-canvas"></canvas>
+
+<!-- Nav Bar -->
+<nav class="nav" id="nav">
+  <div class="nav-logo">
+    <img src="stamp-logo.svg" alt="HSRS Logo" />
+  </div>
+  <ul class="nav-links">
+    <li><a href="#games">Games</a></li>
+    <li><a href="#shop">Shop</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#crew">Crew</a></li>
+  </ul>
+  <a href="#" class="nav-cta">
+    <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0L48 46H0V0Z" fill="#360084"/></svg></div>
+    <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H48L96 46H48L0 0Z" fill="#8F0178"/></svg></div>
+    <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H96L144 46H96L48 0Z" fill="#DF1A58"/></svg></div>
+    <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
+    <span>Join The Crew</span>
+  </a>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero" id="hero">
+  <div class="hero-content">
+    <!-- Static badge logo -->
+    <div class="hero-logo" id="hero-logo">
+      <img src="assets/loading/ring.svg" alt="" style="position:absolute;top:0;left:0;width:100%;height:100%" />
+      <img src="assets/loading/astronaut.svg" alt="Hazy Space Ranger Studios" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1" />
+    </div>
+
+    <!-- Text -->
+    <div class="hero-text" id="hero-text">
+      <div class="hero-headline" id="hero-headline"></div>
+      <div class="hero-body" id="hero-body"></div>
+    </div>
+
+    <!-- Chevron -->
+    <div class="hero-chevron" id="hero-chevron">
+      <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15 23L30 38L45 23" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- Under Construction Section -->
+<section class="under-construction">
+  <h2>Under Construction</h2>
+</section>
+
+<script>
+// === Intro animation sequence ===
+(() => {
+  const TYPE_SPEED = 15;        // ms per character
+  const STRIPE_STAGGER = 220;   // delay between each stripe reveal
+  const FORM_DELAY = 300;       // wait before stripes/logo appear
+  const TYPE_DELAY = 1100;      // wait before typing begins
+
+  const headlineText = 'Lorem ipsum dolor sit amet';
+  const bodyText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad.';
+
+  const heroLogo = document.getElementById('hero-logo');
+  const heroText = document.getElementById('hero-text');
+  const heroHeadline = document.getElementById('hero-headline');
+  const heroBody = document.getElementById('hero-body');
+  const heroChevron = document.getElementById('hero-chevron');
+
+  function begin() {
+    // Reveal the background layers
+    document.getElementById('particle-canvas').classList.add('visible');
+    document.getElementById('shooting-stars').classList.add('visible');
+    document.getElementById('stripes-canvas').classList.add('visible');
+
+    // The badge logo and text load in together
+    setTimeout(() => {
+      heroLogo.classList.add('visible');
+      heroText.classList.add('visible');
+      typeText(heroHeadline, headlineText, () => {
+        heroHeadline.classList.add('done');
+        typeText(heroBody, bodyText, () => {
+          heroBody.classList.add('done');
+          const cursor = heroBody.querySelector('.cursor');
+          if (cursor) cursor.remove();
+          heroChevron.classList.add('visible');
+        });
+      });
+    }, FORM_DELAY);
+
+    // The stripes form (halftone, top → down), staggered by color
+    for (let i = 0; i < 4; i++) {
+      setTimeout(() => { if (window.STRIPES) window.STRIPES.start(i); }, FORM_DELAY + i * STRIPE_STAGGER);
+    }
+  }
+
+  // Typewriter effect
+  function typeText(el, text, onComplete) {
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    el.appendChild(cursor);
+    (function tick() {
+      if (i < text.length) {
+        el.insertBefore(document.createTextNode(text[i]), cursor);
+        i++;
+        setTimeout(tick, TYPE_SPEED);
+      } else {
+        cursor.remove();
+        if (onComplete) onComplete();
+      }
+    })();
+  }
+
+  if (document.readyState === 'complete') begin();
+  else window.addEventListener('load', begin);
+})();
+</script>
+
+<script type="module">
+// === Interactive Particle Background ===
+import * as THREE from 'three';
+(() => {
+  const PARTICLE_COUNT = 3000;
+  const TOUCH_SIZE = 64;
+
+  // --- Simplex 2D noise (inline GLSL) ---
+  const snoise2D = `
+vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec2 mod289(vec2 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec3 permute(vec3 x){return mod289(((x*34.0)+1.0)*x);}
+float snoise(vec2 v){
+  const vec4 C=vec4(0.211324865405187,0.366025403784439,-0.577350269189626,0.024390243902439);
+  vec2 i=floor(v+dot(v,C.yy));
+  vec2 x0=v-i+dot(i,C.xx);
+  vec2 i1;i1=(x0.x>x0.y)?vec2(1.0,0.0):vec2(0.0,1.0);
+  vec4 x12=x0.xyxy+C.xxzz;x12.xy-=i1;
+  i=mod289(i);
+  vec3 p=permute(permute(i.y+vec3(0.0,i1.y,1.0))+i.x+vec3(0.0,i1.x,1.0));
+  vec3 m=max(0.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.0);
+  m=m*m;m=m*m;
+  vec3 x=2.0*fract(p*C.www)-1.0;
+  vec3 h=abs(x)-0.5;
+  vec3 ox=floor(x+0.5);
+  vec3 a0=x-ox;
+  m*=1.79284291400159-0.85373472095314*(a0*a0+h*h);
+  vec3 g;
+  g.x=a0.x*x0.x+h.x*x0.y;
+  g.yz=a0.yz*x12.xz+h.yz*x12.yw;
+  return 130.0*dot(m,g);
+}`;
+
+  // --- Vertex Shader ---
+  const vertexShader = `
+${snoise2D}
+attribute float pindex;
+attribute vec3 offset;
+attribute float angle;
+attribute float size;
+attribute float brightness;
+
+uniform float uTime;
+uniform float uDepth;
+uniform float uSize;
+uniform sampler2D uTouch;
+uniform vec2 uResolution;
+
+varying float vBrightness;
+
+void main(){
+  vec3 displaced=offset;
+
+  // Simplex noise drift
+  float n=snoise(vec2(pindex*0.0015,uTime*0.08));
+  float n2=snoise(vec2(pindex*0.002+100.0,uTime*0.06));
+  displaced.x+=n*8.0;
+  displaced.y+=n2*8.0;
+  displaced.z+=snoise(vec2(pindex*0.001,uTime*0.04))*uDepth;
+
+  // Touch displacement
+  vec2 touchUV=vec2(
+    (displaced.x/uResolution.x)+0.5,
+    1.0-((displaced.y/uResolution.y)+0.5)
+  );
+  float t=texture2D(uTouch,touchUV).r;
+  displaced.z+=t*40.0;
+  displaced.x+=cos(angle)*t*20.0;
+  displaced.y+=sin(angle)*t*20.0;
+
+  // Twinkle
+  float twinkle=sin(uTime*1.5+pindex*0.5)*0.3+0.7;
+  vBrightness=brightness*twinkle;
+
+  vec4 mvPos=modelViewMatrix*vec4(displaced,1.0);
+  gl_PointSize=size*uSize;
+  gl_Position=projectionMatrix*mvPos;
+}`;
+
+  // --- Fragment Shader ---
+  const fragmentShader = `
+varying float vBrightness;
+void main(){
+  vec2 uv=gl_PointCoord-0.5;
+  float d=length(uv);
+  float alpha=smoothstep(0.5,0.15,d)*vBrightness;
+  gl_FragColor=vec4(vec3(1.0),alpha);
+}`;
+
+  // --- Touch Texture ---
+  class TouchTexture {
+    constructor() {
+      this.size = TOUCH_SIZE;
+      this.trail = [];
+      this.canvas = document.createElement('canvas');
+      this.canvas.width = this.canvas.height = this.size;
+      this.ctx = this.canvas.getContext('2d');
+      this.texture = new THREE.Texture(this.canvas);
+      this.ctx.fillStyle = '#000';
+      this.ctx.fillRect(0, 0, this.size, this.size);
+    }
+    addTouch(pt) {
+      let force = 0;
+      if (this.trail.length > 0) {
+        const last = this.trail[this.trail.length - 1];
+        const dx = pt.x - last.x, dy = pt.y - last.y;
+        force = Math.min(Math.sqrt(dx * dx + dy * dy) * 10, 1);
+      }
+      this.trail.push({ x: pt.x, y: pt.y, age: 0, force });
+    }
+    update() {
+      this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      this.ctx.fillRect(0, 0, this.size, this.size);
+      for (let i = this.trail.length - 1; i >= 0; i--) {
+        const p = this.trail[i];
+        p.age++;
+        if (p.age > 100) { this.trail.splice(i, 1); continue; }
+        const intensity = (1 - p.age / 100) * Math.max(p.force, 0.2);
+        const rad = this.size * 0.12 * intensity;
+        const px = p.x * this.size, py = (1 - p.y) * this.size;
+        const g = this.ctx.createRadialGradient(px, py, 0, px, py, rad);
+        g.addColorStop(0, `rgba(255,255,255,${0.6 * intensity})`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        this.ctx.beginPath();
+        this.ctx.fillStyle = g;
+        this.ctx.arc(px, py, rad, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+      this.texture.needsUpdate = true;
+    }
+  }
+
+  // --- Init ---
+  const canvas = document.getElementById('particle-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+
+  const scene = new THREE.Scene();
+  const fovH = window.innerHeight / 2;
+  const camera = new THREE.OrthographicCamera(
+    -window.innerWidth / 2, window.innerWidth / 2,
+    fovH, -fovH, 1, 1000
+  );
+  camera.position.z = 500;
+
+  const touchTex = new TouchTexture();
+
+  // Create particles
+  const positions = new Float32Array(PARTICLE_COUNT * 3);
+  const pindices = new Float32Array(PARTICLE_COUNT);
+  const angles = new Float32Array(PARTICLE_COUNT);
+  const sizes = new Float32Array(PARTICLE_COUNT);
+  const brightnesses = new Float32Array(PARTICLE_COUNT);
+
+  const w = window.innerWidth, h = window.innerHeight;
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * w * 1.2;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * h * 1.2;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+    pindices[i] = i;
+    angles[i] = Math.random() * Math.PI * 2;
+    sizes[i] = Math.random() * 1.5 + 0.5;
+    brightnesses[i] = Math.random() * 0.6 + 0.2;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3));
+  const instGeom = new THREE.InstancedBufferGeometry();
+  instGeom.index = geom.index;
+  instGeom.attributes.position = geom.attributes.position;
+  instGeom.setAttribute('offset', new THREE.InstancedBufferAttribute(positions, 3));
+  instGeom.setAttribute('pindex', new THREE.InstancedBufferAttribute(pindices, 1));
+  instGeom.setAttribute('angle', new THREE.InstancedBufferAttribute(angles, 1));
+  instGeom.setAttribute('size', new THREE.InstancedBufferAttribute(sizes, 1));
+  instGeom.setAttribute('brightness', new THREE.InstancedBufferAttribute(brightnesses, 1));
+
+  const material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms: {
+      uTime: { value: 0 },
+      uDepth: { value: 30.0 },
+      uSize: { value: 4.0 },
+      uTouch: { value: touchTex.texture },
+      uResolution: { value: new THREE.Vector2(w, h) },
+    },
+    transparent: true,
+    depthTest: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const points = new THREE.Points(instGeom, material);
+  scene.add(points);
+
+  // Mouse/touch events â€” map screen coords to 0-1 UV for touch texture
+  function onPointerMove(e) {
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    touchTex.addTouch({
+      x: x / window.innerWidth,
+      y: y / window.innerHeight
+    });
+  }
+  window.addEventListener('mousemove', onPointerMove, { passive: true });
+  window.addEventListener('touchmove', onPointerMove, { passive: true });
+
+  // Animation loop
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    material.uniforms.uTime.value += delta;
+    touchTex.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Resize
+  window.addEventListener('resize', () => {
+    const w2 = window.innerWidth, h2 = window.innerHeight;
+    renderer.setSize(w2, h2, false);
+    camera.left = -w2 / 2; camera.right = w2 / 2;
+    camera.top = h2 / 2; camera.bottom = -h2 / 2;
+    camera.updateProjectionMatrix();
+    material.uniforms.uResolution.value.set(w2, h2);
+  });
+})();
+</script>
+
+<script>
+// === Right-side Racing Stripes: diagonal→vertical bars, halftone top→down ===
+(() => {
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const REVEAL_DUR = 2200;          // ms for one bar to fully form
+  const COLORS = ['#360084', '#8F0178', '#DF1A58', '#F5B345'];
+  const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  const canvas = document.getElementById('stripes-canvas');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0;
+
+  // Each bar: a centerline that enters diagonally at the top then runs straight
+  // down the right side. Geometry is derived from the viewport so it scales.
+  const bars = COLORS.map(color => ({ color, pts: null, cum: null, L: 0, barW: 0, progress: 0, startTime: 0, running: false }));
+
+  function buildGeometry() {
+    W = Math.round(window.innerWidth * DPR);
+    H = Math.round(window.innerHeight * DPR);
+    canvas.width = W;
+    canvas.height = H;
+    const barW = Math.max(15 * DPR, 0.026 * W);   // Figma stripe width (~37px @1440)
+    const pad = barW * 2;
+    const stepX = 0.042 * W;          // center spacing (Figma ~60px @1440)
+    const stepY = stepX * 0.5;        // downward stagger per bar (Figma ~2:1)
+    const edgeX = 0.935 * W;          // innermost (yellow) vertical — nudged left
+    const xv0 = edgeX - 3 * stepX;    // outermost (purple) vertical-run x
+    const bendY0 = 0.15 * H;          // base elbow height
+    // Each bar: a vertical run, with its top kicking out diagonally up-RIGHT to
+    // the top edge (elbow points left). Successive bars are translated
+    // down-and-right by (stepX, stepY) — the Figma stripe-group offset pattern.
+    bars.forEach((b, k) => {
+      const tx = k * stepX, ty = k * stepY;
+      const xv = xv0 + tx;
+      const bendY = bendY0 + ty;
+      const pts = [
+        { x: xv + (bendY + pad), y: -pad },   // entry: 45° up to the top-right
+        { x: xv, y: bendY },                  // elbow
+        { x: xv, y: H + barW * 4 },           // run off the bottom
+      ];
+      const l0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const l1 = Math.hypot(pts[2].x - pts[1].x, pts[2].y - pts[1].y);
+      b.pts = pts; b.cum = [0, l0, l0 + l1]; b.L = l0 + l1; b.barW = barW;
+    });
+  }
+
+  // position + unit tangent at arc-length s along a bar's centerline
+  function at(b, s) {
+    s = Math.max(0, Math.min(b.L, s));
+    const i = s <= b.cum[1] ? 0 : 1;
+    const a = b.pts[i], c = b.pts[i + 1];
+    const segLen = b.cum[i + 1] - b.cum[i];
+    const t = segLen > 0 ? (s - b.cum[i]) / segLen : 0;
+    const dx = c.x - a.x, dy = c.y - a.y, len = Math.hypot(dx, dy) || 1;
+    return { x: a.x + dx * t, y: a.y + dy * t, tx: dx / len, ty: dy / len };
+  }
+
+  function drawBar(b) {
+    if (b.progress <= 0) return;
+    const band = b.L * 0.16;                       // halftone transition length
+    const revealed = b.progress * (b.L + band);
+    const solidLen = revealed - band;
+
+    // solid portion: stroke the centerline up to solidLen
+    if (solidLen > 0) {
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = b.barW;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(b.pts[0].x, b.pts[0].y);
+      for (let i = 0; i < 2; i++) {
+        if (b.cum[i + 1] <= solidLen) { ctx.lineTo(b.pts[i + 1].x, b.pts[i + 1].y); }
+        else { const p = at(b, solidLen); ctx.lineTo(p.x, p.y); break; }
+      }
+      ctx.stroke();
+    }
+
+    // halftone band: rows of dots across the bar width, shrinking toward the
+    // leading (lower) edge so the bar "forms" out of dots as it sweeps down
+    const cell = b.barW * 0.5;
+    const maxR = cell * 0.62;
+    const halfW = b.barW * 0.5;
+    ctx.fillStyle = b.color;
+    const from = Math.max(0, solidLen);
+    const to = Math.min(revealed, b.L);
+    for (let s = from; s < to; s += cell) {
+      const cov = Math.max(0, Math.min(1, (revealed - s) / band));
+      const r = cov * maxR;
+      if (r < 0.4) continue;
+      const p = at(b, s);
+      const nx = -p.ty, ny = p.tx;                 // unit normal across the bar
+      const rowShift = (((s / cell) | 0) % 2) ? cell * 0.5 : 0;
+      for (let o = -halfW; o <= halfW; o += cell) {
+        ctx.beginPath();
+        ctx.arc(p.x + nx * (o + rowShift), p.y + ny * (o + rowShift), r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  let rafId = null;
+  function tick(now) {
+    ctx.clearRect(0, 0, W, H);
+    let anyRunning = false;
+    for (const b of bars) {
+      if (b.running) {
+        const t = Math.min((now - b.startTime) / REVEAL_DUR, 1);
+        b.progress = easeInOutCubic(t);
+        if (t >= 1) { b.progress = 1; b.running = false; }
+        else anyRunning = true;
+      }
+      drawBar(b);
+    }
+    rafId = anyRunning ? requestAnimationFrame(tick) : null;
+  }
+
+  function redrawStatic() {
+    ctx.clearRect(0, 0, W, H);
+    for (const b of bars) drawBar(b);
+  }
+
+  buildGeometry();
+
+  window.STRIPES = {
+    start(i) {
+      const b = bars[i];
+      if (!b) return;
+      b.startTime = performance.now();
+      b.running = true;
+      b.progress = 0;
+      if (rafId === null) rafId = requestAnimationFrame(tick);
+    }
+  };
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      buildGeometry();
+      if (rafId === null) redrawStatic();   // keep finished bars in place
+    }, 120);
+  });
+})();
+</script>
+
+<script>
+// === Shooting Stars ===
+(() => {
+  const canvas = document.getElementById('shooting-stars');
+  const ctx = canvas.getContext('2d');
+  const stars = [];
+  const MIN_INTERVAL = 2500;
+  const MAX_INTERVAL = 7000;
+
+  function resize() {
+    canvas.width = window.innerWidth * window.devicePixelRatio;
+    canvas.height = window.innerHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function spawn() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const edge = Math.floor(Math.random() * 4);
+    let x, y, angle;
+
+    if (edge === 0) {
+      // top edge â€” streak downward
+      x = Math.random() * w;
+      y = -10;
+      angle = (Math.random() * 50 + 20) * (Math.PI / 180);
+    } else if (edge === 1) {
+      // right edge â€” streak left
+      x = w + 10;
+      y = Math.random() * h * 0.7;
+      angle = (Math.random() * 40 + 160) * (Math.PI / 180);
+    } else if (edge === 2) {
+      // left edge â€” streak right
+      x = -10;
+      y = Math.random() * h * 0.7;
+      angle = (Math.random() * 40 - 20) * (Math.PI / 180);
+    } else {
+      // bottom edge â€” streak upward
+      x = Math.random() * w;
+      y = h + 10;
+      angle = (Math.random() * 50 - 245) * (Math.PI / 180);
+    }
+
+    const speed = Math.random() * 450 + 450;
+    const length = Math.random() * 140 + 90;
+    stars.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      length,
+      life: 1,
+      decay: Math.random() * 0.3 + 0.45,
+      width: Math.random() * 0.8 + 0.6,
+    });
+    setTimeout(spawn, MIN_INTERVAL + Math.random() * (MAX_INTERVAL - MIN_INTERVAL));
+  }
+  setTimeout(spawn, 2000);
+
+  let prev = performance.now();
+  function animate(now) {
+    requestAnimationFrame(animate);
+    const dt = (now - prev) / 1000;
+    prev = now;
+
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    for (let i = stars.length - 1; i >= 0; i--) {
+      const s = stars[i];
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.life -= s.decay * dt;
+
+      if (s.life <= 0 || s.x > window.innerWidth + 100 || s.y > window.innerHeight + 100) {
+        stars.splice(i, 1);
+        continue;
+      }
+
+      const tailX = s.x - (s.vx / Math.sqrt(s.vx * s.vx + s.vy * s.vy)) * s.length * s.life;
+      const tailY = s.y - (s.vy / Math.sqrt(s.vx * s.vx + s.vy * s.vy)) * s.length * s.life;
+
+      const grad = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.6, `rgba(255,255,255,${s.life * 0.25})`);
+      grad.addColorStop(1, `rgba(255,255,255,${s.life * 0.7})`);
+
+      ctx.beginPath();
+      ctx.moveTo(tailX, tailY);
+      ctx.lineTo(s.x, s.y);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = s.width;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // faint glow around trail
+      ctx.beginPath();
+      ctx.moveTo(tailX, tailY);
+      ctx.lineTo(s.x, s.y);
+      ctx.strokeStyle = `rgba(255,255,255,${s.life * 0.07})`;
+      ctx.lineWidth = s.width * 3;
+      ctx.stroke();
+
+      // head
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.width * 1.4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.life * 0.7})`;
+      ctx.fill();
+    }
+  }
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

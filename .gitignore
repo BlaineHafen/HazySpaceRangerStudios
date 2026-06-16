@@ -1,0 +1,13 @@
+# Publish only the website (src/) and its deploy workflow.
+# Everything at the repo root is ignored by default, then re-included below.
+/*
+!/.gitignore
+!/README.md
+!/src/
+!/.github/
+
+# Within src/, keep out incidental cruft.
+.DS_Store
+Thumbs.db
+*.tmp
+figma-*.png
