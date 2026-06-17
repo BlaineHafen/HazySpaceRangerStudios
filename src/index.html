@@ -399,12 +399,13 @@ void main(){
   displaced.x+=cos(angle)*t*20.0;
   displaced.y+=sin(angle)*t*20.0;
 
-  // Twinkle
+  // Twinkle + cursor/touch glow: stars under the pointer brighten, then dim
+  // back down as the touch trail decays — leaving a fading trail.
   float twinkle=sin(uTime*1.5+pindex*0.5)*0.3+0.7;
-  vBrightness=brightness*twinkle;
+  vBrightness=brightness*twinkle + t*1.4;
 
   vec4 mvPos=modelViewMatrix*vec4(displaced,1.0);
-  gl_PointSize=size*uSize;
+  gl_PointSize=size*uSize*(1.0+t*0.35);
   gl_Position=projectionMatrix*mvPos;
 }`;
 
@@ -423,6 +424,7 @@ void main(){
     constructor() {
       this.size = TOUCH_SIZE;
       this.trail = [];
+      this.last = {};          // per-pointer last position, keyed by id (mouse / finger)
       this.canvas = document.createElement('canvas');
       this.canvas.width = this.canvas.height = this.size;
       this.ctx = this.canvas.getContext('2d');
@@ -431,14 +433,19 @@ void main(){
       this.ctx.fillRect(0, 0, this.size, this.size);
     }
     addTouch(pt) {
-      let force = 0;
-      if (this.trail.length > 0) {
-        const last = this.trail[this.trail.length - 1];
-        const dx = pt.x - last.x, dy = pt.y - last.y;
-        force = Math.min(Math.sqrt(dx * dx + dy * dy) * 10, 1);
+      const id = pt.id == null ? 'mouse' : pt.id;
+      // speed-based intensity measured against THIS pointer's previous spot,
+      // so multiple fingers/thumbs don't interfere with each other
+      const prev = this.last[id];
+      let force = 0.5;         // baseline so a stationary tap still glows
+      if (prev) {
+        const dx = pt.x - prev.x, dy = pt.y - prev.y;
+        force = Math.min(Math.max(Math.sqrt(dx * dx + dy * dy) * 10, 0.4), 1);
       }
+      this.last[id] = { x: pt.x, y: pt.y };
       this.trail.push({ x: pt.x, y: pt.y, age: 0, force });
     }
+    endTouch(id) { delete this.last[id == null ? 'mouse' : id]; }
     update() {
       this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
       this.ctx.fillRect(0, 0, this.size, this.size);
@@ -524,17 +531,30 @@ void main(){
   const points = new THREE.Points(instGeom, material);
   scene.add(points);
 
-  // Mouse/touch events â€” map screen coords to 0-1 UV for touch texture
-  function onPointerMove(e) {
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
+  // Mouse/touch events â€” map screen coords to 0-1 UV for the touch texture
+  function addPoint(clientX, clientY, id) {
     touchTex.addTouch({
-      x: x / window.innerWidth,
-      y: y / window.innerHeight
+      x: clientX / window.innerWidth,
+      y: clientY / window.innerHeight,
+      id
     });
   }
-  window.addEventListener('mousemove', onPointerMove, { passive: true });
-  window.addEventListener('touchmove', onPointerMove, { passive: true });
+  function onMouseMove(e) { addPoint(e.clientX, e.clientY, 'mouse'); }
+  // handle every finger/thumb that moved or touched down this event
+  function onTouch(e) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      addPoint(t.clientX, t.clientY, t.identifier);
+    }
+  }
+  function onTouchEnd(e) {
+    for (let i = 0; i < e.changedTouches.length; i++) touchTex.endTouch(e.changedTouches[i].identifier);
+  }
+  window.addEventListener('mousemove', onMouseMove, { passive: true });
+  window.addEventListener('touchstart', onTouch, { passive: true });
+  window.addEventListener('touchmove', onTouch, { passive: true });
+  window.addEventListener('touchend', onTouchEnd, { passive: true });
+  window.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
   // Animation loop
   const clock = new THREE.Clock();
