@@ -6,7 +6,7 @@
 <title>Hazy Space Ranger Studios</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anta&family=Montserrat:wght@400;500&family=Outfit:wght@200;300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anta&family=Dancing+Script:wght@600&family=Montserrat:wght@400;500&family=Outfit:wght@200;300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js"}}</script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -71,6 +71,27 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .nav-cta .stripe-2{transition-delay:.06s}
 .nav-cta .stripe-3{transition-delay:.12s}
 .nav-cta .stripe-4{transition-delay:.18s}
+
+/* Mobile nav pieces — hidden on desktop, shown via the 768px breakpoint */
+.nav-cursive{display:none;font-family:'Dancing Script',cursive;font-weight:600;font-size:24px;color:#fff;line-height:1;pointer-events:none}
+.nav-burger{display:none;flex-direction:column;justify-content:center;gap:5px;width:32px;height:32px;background:none;border:none;cursor:pointer;padding:0;flex-shrink:0}
+.nav-burger span{display:block;width:24px;height:2px;background:#fff;margin:0 auto;transition:transform .3s ease, opacity .2s ease}
+.nav-burger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-burger.open span:nth-child(2){opacity:0}
+.nav-burger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.nav-menu{
+  display:none;
+  position:absolute;top:100%;left:0;right:0;z-index:19;
+  flex-direction:column;gap:4px;
+  background:#050505;padding:8px 20px 20px;
+  border-top:1px solid rgba(255,255,255,.08);
+  transform:translateY(-8px);opacity:0;pointer-events:none;
+  transition:opacity .25s ease, transform .25s ease;
+}
+.nav-menu.open{transform:none;opacity:1;pointer-events:auto}
+.nav-menu a{font-family:'Anta',sans-serif;font-size:18px;color:#a7a7a7;text-decoration:none;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06);transition:color .3s}
+.nav-menu a:hover,.nav-menu a:active{color:#fff}
+.nav-menu .nav-menu-cta{margin-top:12px;border:1px solid #a7a7a7;border-bottom:1px solid #a7a7a7;text-align:center;padding:12px;color:#fff}
 
 /* ===================== HERO SECTION ===================== */
 .hero{
@@ -193,15 +214,21 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 
 /* ===================== RESPONSIVE ===================== */
 @media(max-width:768px){
-  .nav{padding:16px 20px}
+  .nav{padding:16px}
+  .nav-logo{width:auto}
+  .nav-logo img{height:28px}
   .nav-links{display:none}
-  .nav-cta{font-size:16px;padding:10px}
-  .hero{padding:0 24px;min-height:600px}
-  .hero-logo{width:180px;height:181px;margin-bottom:20px}
-  .hero-headline{font-size:28px;white-space:normal}
+  .nav-cta{display:none}
+  .nav-cursive{display:block}
+  .nav-burger{display:flex}
+  .nav-menu{display:flex}
+  .hero{padding:140px 16px 40px;min-height:600px;justify-content:flex-start}
+  .hero-logo{width:120px;height:120px;margin-bottom:32px}
+  .hero-headline{font-size:32px;white-space:normal}
   .hero-body{font-size:16px}
-  .under-construction h2{font-size:36px}
-  .hero-chevron svg{width:40px;height:40px}
+  .hero-chevron{margin-top:28px}
+  .hero-chevron svg{width:28px;height:28px}
+  .under-construction h2{font-size:28px;white-space:normal;text-align:center}
 }
 </style>
 </head>
@@ -231,6 +258,21 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
     <span>Join The Crew</span>
   </a>
+
+  <!-- Mobile-only: cursive wordmark + hamburger -->
+  <div class="nav-cursive">Out There</div>
+  <button class="nav-burger" id="nav-burger" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <!-- Mobile dropdown menu -->
+  <div class="nav-menu" id="nav-menu">
+    <a href="#games">Games</a>
+    <a href="#shop">Shop</a>
+    <a href="#about">About</a>
+    <a href="#crew">Crew</a>
+    <a href="#" class="nav-menu-cta">Join The Crew</a>
+  </div>
 </nav>
 
 <!-- Hero Section -->
@@ -326,6 +368,24 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 
   if (document.readyState === 'complete') begin();
   else window.addEventListener('load', begin);
+})();
+</script>
+
+<script>
+// === Mobile nav hamburger ===
+(() => {
+  const burger = document.getElementById('nav-burger');
+  const menu = document.getElementById('nav-menu');
+  if (!burger || !menu) return;
+  const setOpen = (open) => {
+    burger.classList.toggle('open', open);
+    menu.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  burger.addEventListener('click', () => setOpen(!menu.classList.contains('open')));
+  // close when a link is tapped or when leaving mobile width
+  menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setOpen(false)));
+  window.addEventListener('resize', () => { if (window.innerWidth >= 768) setOpen(false); });
 })();
 </script>
 
@@ -434,6 +494,7 @@ void main(){
     }
     addTouch(pt) {
       const id = pt.id == null ? 'mouse' : pt.id;
+      const isTouch = id !== 'mouse';
       // speed-based intensity measured against THIS pointer's previous spot,
       // so multiple fingers/thumbs don't interfere with each other
       const prev = this.last[id];
@@ -443,21 +504,24 @@ void main(){
         force = Math.min(Math.max(Math.sqrt(dx * dx + dy * dy) * 10, 0.4), 1);
       }
       this.last[id] = { x: pt.x, y: pt.y };
-      this.trail.push({ x: pt.x, y: pt.y, age: 0, force });
+      // touch points glow stronger than the mouse (fingertips are bigger and
+      // mobile only gets a glimpse between scroll repaints)
+      this.trail.push({ x: pt.x, y: pt.y, age: 0, force, scale: isTouch ? 1.9 : 1.0 });
     }
     endTouch(id) { delete this.last[id == null ? 'mouse' : id]; }
     update() {
-      this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      this.ctx.fillStyle = 'rgba(0,0,0,0.08)';   // slower fade → trail lingers
       this.ctx.fillRect(0, 0, this.size, this.size);
+      const LIFE = 140;                           // longer-lived trail
       for (let i = this.trail.length - 1; i >= 0; i--) {
         const p = this.trail[i];
         p.age++;
-        if (p.age > 100) { this.trail.splice(i, 1); continue; }
-        const intensity = (1 - p.age / 100) * Math.max(p.force, 0.2);
-        const rad = this.size * 0.12 * intensity;
+        if (p.age > LIFE) { this.trail.splice(i, 1); continue; }
+        const intensity = (1 - p.age / LIFE) * Math.max(p.force, 0.2) * (p.scale || 1);
+        const rad = this.size * 0.13 * Math.min(intensity, 1.0);   // size capped
         const px = p.x * this.size, py = (1 - p.y) * this.size;
         const g = this.ctx.createRadialGradient(px, py, 0, px, py, rad);
-        g.addColorStop(0, `rgba(255,255,255,${0.6 * intensity})`);
+        g.addColorStop(0, `rgba(255,255,255,${Math.min(1, 0.85 * intensity)})`);
         g.addColorStop(1, 'rgba(255,255,255,0)');
         this.ctx.beginPath();
         this.ctx.fillStyle = g;
@@ -539,13 +603,18 @@ void main(){
       id
     });
   }
-  function onMouseMove(e) { addPoint(e.clientX, e.clientY, 'mouse'); }
+  function onMouseMove(e) { addPoint(e.clientX, e.clientY, 'mouse'); renderFrame(); }
   // handle every finger/thumb that moved or touched down this event
   function onTouch(e) {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i];
       addPoint(t.clientX, t.clientY, t.identifier);
     }
+    // Repaint immediately from the touch handler. Mobile browsers (notably iOS
+    // Safari) pause requestAnimationFrame during an active scroll, but touch
+    // events keep firing — so driving a render here keeps the glow alive and
+    // tracking the finger even while the page is scrolling.
+    renderFrame();
   }
   function onTouchEnd(e) {
     for (let i = 0; i < e.changedTouches.length; i++) touchTex.endTouch(e.changedTouches[i].identifier);
@@ -556,14 +625,21 @@ void main(){
   window.addEventListener('touchend', onTouchEnd, { passive: true });
   window.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
-  // Animation loop
-  const clock = new THREE.Clock();
-  function animate() {
-    requestAnimationFrame(animate);
-    const delta = clock.getDelta();
-    material.uniforms.uTime.value += delta;
+  // Single render path, drivable by BOTH rAF and touch events. A min-interval
+  // throttle de-dupes the two sources so we never double-render a frame.
+  let lastRender = performance.now();
+  function renderFrame() {
+    const now = performance.now();
+    if (now - lastRender < 13) return;            // cap ~75fps
+    const dt = Math.min((now - lastRender) / 1000, 0.05);
+    lastRender = now;
+    material.uniforms.uTime.value += dt;
     touchTex.update();
     renderer.render(scene, camera);
+  }
+  function animate() {
+    requestAnimationFrame(animate);
+    renderFrame();
   }
   animate();
 
@@ -595,11 +671,15 @@ void main(){
   // down the right side. Geometry is derived from the viewport so it scales.
   const bars = COLORS.map(color => ({ color, pts: null, cum: null, L: 0, barW: 0, progress: 0, startTime: 0, running: false }));
 
-  function buildGeometry() {
-    W = Math.round(window.innerWidth * DPR);
-    H = Math.round(window.innerHeight * DPR);
-    canvas.width = W;
-    canvas.height = H;
+  function setPts(b, pts, barW) {
+    const l0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    const l1 = Math.hypot(pts[2].x - pts[1].x, pts[2].y - pts[1].y);
+    b.pts = pts; b.cum = [0, l0, l0 + l1]; b.L = l0 + l1; b.barW = barW;
+  }
+
+  // Desktop: vertical runs down the right side, each top kicking out diagonally
+  // up-RIGHT to the top edge (elbow points left); staggered down-right.
+  function buildDesktop() {
     const barW = Math.max(15 * DPR, 0.026 * W);   // Figma stripe width (~37px @1440)
     const pad = barW * 2;
     const stepX = 0.042 * W;          // center spacing (Figma ~60px @1440)
@@ -607,22 +687,42 @@ void main(){
     const edgeX = 0.935 * W;          // innermost (yellow) vertical — nudged left
     const xv0 = edgeX - 3 * stepX;    // outermost (purple) vertical-run x
     const bendY0 = 0.15 * H;          // base elbow height
-    // Each bar: a vertical run, with its top kicking out diagonally up-RIGHT to
-    // the top edge (elbow points left). Successive bars are translated
-    // down-and-right by (stepX, stepY) — the Figma stripe-group offset pattern.
     bars.forEach((b, k) => {
-      const tx = k * stepX, ty = k * stepY;
-      const xv = xv0 + tx;
-      const bendY = bendY0 + ty;
-      const pts = [
+      const xv = xv0 + k * stepX, bendY = bendY0 + k * stepY;
+      setPts(b, [
         { x: xv + (bendY + pad), y: -pad },   // entry: 45° up to the top-right
         { x: xv, y: bendY },                  // elbow
         { x: xv, y: H + barW * 4 },           // run off the bottom
-      ];
-      const l0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-      const l1 = Math.hypot(pts[2].x - pts[1].x, pts[2].y - pts[1].y);
-      b.pts = pts; b.cum = [0, l0, l0 + l1]; b.L = l0 + l1; b.barW = barW;
+      ], barW);
     });
+  }
+
+  // Mobile: horizontal runs across the top, each hooking down-RIGHT off the
+  // edge (elbow points up-left); staggered down-left (Figma mobile pattern).
+  function buildMobile() {
+    const barW = Math.max(7 * DPR, 0.03 * W);
+    const pad = barW * 2;
+    const stepY = barW * 1.4;          // vertical spacing between runs
+    const stepX = stepY * 0.5;         // leftward stagger per bar (~1:2 left:down)
+    const runY0 = Math.max(0.085 * H, 70 * DPR);   // top run, just below the nav
+    const elbowX0 = 0.55 * W;          // purple elbow (rightmost); lower bars bend further left
+    const far = H + W;                 // run off-screen bottom-right
+    bars.forEach((b, k) => {
+      const runY = runY0 + k * stepY, elbowX = elbowX0 - k * stepX;
+      setPts(b, [
+        { x: -pad, y: runY },                 // enter from off the left edge
+        { x: elbowX, y: runY },               // elbow
+        { x: elbowX + far, y: runY + far },   // diagonal down-right off-screen
+      ], barW);
+    });
+  }
+
+  function buildGeometry() {
+    W = Math.round(window.innerWidth * DPR);
+    H = Math.round(window.innerHeight * DPR);
+    canvas.width = W;
+    canvas.height = H;
+    if (window.innerWidth < 768) buildMobile(); else buildDesktop();
   }
 
   // position + unit tangent at arc-length s along a bar's centerline
@@ -646,8 +746,9 @@ void main(){
     if (solidLen > 0) {
       ctx.strokeStyle = b.color;
       ctx.lineWidth = b.barW;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      ctx.lineCap = 'butt';     // sharp, flat ends
+      ctx.lineJoin = 'miter';   // sharp elbow corner
+      ctx.miterLimit = 10;
       ctx.beginPath();
       ctx.moveTo(b.pts[0].x, b.pts[0].y);
       for (let i = 0; i < 2; i++) {
@@ -658,9 +759,9 @@ void main(){
     }
 
     // halftone band: rows of dots across the bar width, shrinking toward the
-    // leading (lower) edge so the bar "forms" out of dots as it sweeps down
-    const cell = b.barW * 0.5;
-    const maxR = cell * 0.62;
+    // leading edge so the bar "forms" out of dots as it sweeps along its length
+    const cell = b.barW * 0.34;
+    const maxR = cell * 0.5;
     const halfW = b.barW * 0.5;
     ctx.fillStyle = b.color;
     const from = Math.max(0, solidLen);
