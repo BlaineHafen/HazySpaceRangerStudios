@@ -25,9 +25,11 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 #shooting-stars.visible{
   opacity:1;
 }
-/* Right-side stripes sit above the starfield, below the content/nav */
+/* Stripes scroll WITH the page (absolute, document-tall) — above the fixed
+   starfield, below the content/nav. Height is set in JS to the document height. */
 #stripes-canvas{
-  position:fixed;inset:0;z-index:1;
+  position:absolute;top:0;left:0;
+  width:100%;z-index:1;
   pointer-events:none;
   opacity:0;
   transition:opacity 1.2s ease;
@@ -197,6 +199,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 /* ===================== UNDER CONSTRUCTION ===================== */
 .under-construction{
   position:relative;
+  z-index:2;
   width:100%;
   height:900px;
   display:flex;
@@ -583,7 +586,9 @@ void main(){
     uniforms: {
       uTime: { value: 0 },
       uDepth: { value: 30.0 },
-      uSize: { value: 4.0 },
+      // stars are smaller on mobile (they read proportionally larger on a small
+      // viewport, so the field needs a finer point size there)
+      uSize: { value: window.innerWidth < 768 ? 2.2 : 4.0 },
       uTouch: { value: touchTex.texture },
       uResolution: { value: new THREE.Vector2(w, h) },
     },
@@ -651,6 +656,7 @@ void main(){
     camera.top = h2 / 2; camera.bottom = -h2 / 2;
     camera.updateProjectionMatrix();
     material.uniforms.uResolution.value.set(w2, h2);
+    material.uniforms.uSize.value = w2 < 768 ? 2.2 : 4.0;
   });
 })();
 </script>
@@ -665,7 +671,7 @@ void main(){
 
   const canvas = document.getElementById('stripes-canvas');
   const ctx = canvas.getContext('2d');
-  let W = 0, H = 0;
+  let W = 0, H = 0, VH = 0;   // W=width, H=document height, VH=viewport height (all device px)
 
   // Each bar: a centerline that enters diagonally at the top then runs straight
   // down the right side. Geometry is derived from the viewport so it scales.
@@ -686,7 +692,7 @@ void main(){
     const stepY = stepX * 0.5;        // downward stagger per bar (Figma ~2:1)
     const edgeX = 0.935 * W;          // innermost (yellow) vertical — nudged left
     const xv0 = edgeX - 3 * stepX;    // outermost (purple) vertical-run x
-    const bendY0 = 0.15 * H;          // base elbow height
+    const bendY0 = 0.15 * VH;         // base elbow height (relative to viewport top)
     bars.forEach((b, k) => {
       const xv = xv0 + k * stepX, bendY = bendY0 + k * stepY;
       setPts(b, [
@@ -704,9 +710,9 @@ void main(){
     const pad = barW * 2;
     const stepY = barW * 1.4;          // vertical spacing between runs
     const stepX = stepY * 0.5;         // leftward stagger per bar (~1:2 left:down)
-    const runY0 = Math.max(0.085 * H, 70 * DPR);   // top run, just below the nav
+    const runY0 = Math.max(0.085 * VH, 70 * DPR);  // top run, just below the nav
     const elbowX0 = 0.55 * W;          // purple elbow (rightmost); lower bars bend further left
-    const far = H + W;                 // run off-screen bottom-right
+    const far = VH + W;                // run down-right off the first screen
     bars.forEach((b, k) => {
       const runY = runY0 + k * stepY, elbowX = elbowX0 - k * stepX;
       setPts(b, [
@@ -718,11 +724,19 @@ void main(){
   }
 
   function buildGeometry() {
-    W = Math.round(window.innerWidth * DPR);
-    H = Math.round(window.innerHeight * DPR);
+    const cssW = window.innerWidth;
+    // measure the document height with the canvas collapsed so it doesn't
+    // inflate the page, then size the canvas to span the whole document
+    canvas.style.height = '0px';
+    const cssH = Math.max(document.documentElement.scrollHeight, window.innerHeight);
+    W = Math.round(cssW * DPR);
+    VH = Math.round(window.innerHeight * DPR);
+    H = Math.round(cssH * DPR);
     canvas.width = W;
     canvas.height = H;
-    if (window.innerWidth < 768) buildMobile(); else buildDesktop();
+    canvas.style.width = '100%';
+    canvas.style.height = cssH + 'px';
+    if (cssW < 768) buildMobile(); else buildDesktop();
   }
 
   // position + unit tangent at arc-length s along a bar's centerline
