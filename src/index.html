@@ -182,37 +182,45 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   50%{opacity:0}
 }
 
-/* Chevron — centered under the text block */
-.hero-chevron{
-  align-self:center;
-  margin-top:32px;
-  position:relative;
-  z-index:2;
-  cursor:pointer;
-  opacity:0;
-  transition:opacity .5s ease;
-}
-.hero-chevron.visible{opacity:.9}
-.hero-chevron:hover{opacity:1}
-.hero-chevron svg{width:60px;height:60px;display:block}
-
-/* ===================== UNDER CONSTRUCTION ===================== */
-.under-construction{
+/* ===================== PROJECT CELESTRA ===================== */
+.celestra{
   position:relative;
   z-index:2;
   width:100%;
-  height:900px;
+  min-height:820px;
   display:flex;
-  align-items:center;
+  flex-direction:column;
   justify-content:center;
-  background:transparent;
+  align-items:flex-start;
+  padding:120px 80px;
+  background:transparent;   /* lets the particle ant show through behind it */
 }
-.under-construction h2{
+.celestra-text{position:relative;z-index:2;max-width:520px}
+.celestra h2{
   font-family:'Anta',sans-serif;
-  font-size:64px;
+  font-size:48px;
   font-weight:400;
   color:#fff;
-  white-space:nowrap;
+  margin-bottom:24px;
+}
+.celestra p{
+  font-family:'Montserrat',sans-serif;
+  font-size:24px;
+  font-weight:400;
+  line-height:1.35;
+  color:#fff;
+  max-width:435px;
+}
+/* invisible anchor — marks where the particle ant assembles (right side) */
+.celestra-ant{
+  position:absolute;
+  right:6%;
+  top:50%;
+  transform:translateY(-50%);
+  width:min(52vw,680px);
+  aspect-ratio:738 / 676;
+  z-index:1;
+  pointer-events:none;
 }
 
 /* ===================== RESPONSIVE ===================== */
@@ -229,9 +237,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .hero-logo{width:120px;height:120px;margin-bottom:32px}
   .hero-headline{font-size:32px;white-space:normal}
   .hero-body{font-size:16px}
-  .hero-chevron{margin-top:28px}
-  .hero-chevron svg{width:28px;height:28px}
-  .under-construction h2{font-size:28px;white-space:normal;text-align:center}
+  .celestra{padding:80px 16px;min-height:0}
+  .celestra h2{font-size:28px}
+  .celestra p{font-size:16px}
+  .celestra-ant{position:relative;right:auto;top:auto;transform:none;width:100%;margin-top:32px}
 }
 </style>
 </head>
@@ -292,19 +301,17 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
       <div class="hero-headline" id="hero-headline"></div>
       <div class="hero-body" id="hero-body"></div>
     </div>
-
-    <!-- Chevron -->
-    <div class="hero-chevron" id="hero-chevron">
-      <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15 23L30 38L45 23" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
   </div>
 </section>
 
 <!-- Project Celestra Section -->
-<section class="under-construction">
-  <h2>Project Celestra</h2>
+<section class="celestra" id="celestra">
+  <div class="celestra-text">
+    <h2>Project Celestra</h2>
+    <p>Our first voyage. A tabletop adventure charting the far edge of the known galaxy — strange worlds, fierce crews, and everything waiting Out There. Transmissions incoming.</p>
+  </div>
+  <!-- the starfield assembles into the ant here -->
+  <div class="celestra-ant" id="celestra-ant"></div>
 </section>
 
 <script>
@@ -322,7 +329,6 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   const heroText = document.getElementById('hero-text');
   const heroHeadline = document.getElementById('hero-headline');
   const heroBody = document.getElementById('hero-body');
-  const heroChevron = document.getElementById('hero-chevron');
 
   function begin() {
     // Reveal the background layers
@@ -340,7 +346,6 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
           heroBody.classList.add('done');
           const cursor = heroBody.querySelector('.cursor');
           if (cursor) cursor.remove();
-          heroChevron.classList.add('visible');
         });
       });
     }, FORM_DELAY);
@@ -396,7 +401,8 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 // === Interactive Particle Background ===
 import * as THREE from 'three';
 (() => {
-  const PARTICLE_COUNT = 3000;
+  const PARTICLE_COUNT = 5600;
+  const ANT_COUNT = 2600;       // first N particles assemble into the ant
   const TOUCH_SIZE = 64;
 
   // --- Simplex 2D noise (inline GLSL) ---
@@ -430,6 +436,8 @@ float snoise(vec2 v){
 ${snoise2D}
 attribute float pindex;
 attribute vec3 offset;
+attribute vec3 antTarget;
+attribute float isAnt;
 attribute float angle;
 attribute float size;
 attribute float brightness;
@@ -438,35 +446,43 @@ uniform float uTime;
 uniform float uDepth;
 uniform float uSize;
 uniform float uPush;
+uniform float uForm;
 uniform sampler2D uTouch;
 uniform vec2 uResolution;
 
 varying float vBrightness;
 
 void main(){
-  vec3 displaced=offset;
+  float f = isAnt * uForm;   // how assembled into the ant this particle is
 
-  // Simplex noise drift
+  // Free-floating home position with simplex drift (fades as it locks in)
+  vec3 displaced=offset;
   float n=snoise(vec2(pindex*0.0015,uTime*0.08));
   float n2=snoise(vec2(pindex*0.002+100.0,uTime*0.06));
   displaced.x+=n*8.0;
   displaced.y+=n2*8.0;
   displaced.z+=snoise(vec2(pindex*0.001,uTime*0.04))*uDepth;
 
-  // Touch displacement
+  // Ant target with a faint shimmer so the assembled ant still breathes
+  vec3 target=antTarget;
+  target.x+=sin(uTime*0.7+pindex)*1.0;
+  target.y+=cos(uTime*0.6+pindex*1.2)*1.0;
+
+  displaced=mix(displaced,target,f);
+
+  // Touch displacement (mostly ignored once locked into the ant)
   vec2 touchUV=vec2(
     (displaced.x/uResolution.x)+0.5,
     1.0-((displaced.y/uResolution.y)+0.5)
   );
-  float t=texture2D(uTouch,touchUV).r;
+  float t=texture2D(uTouch,touchUV).r*(1.0-f*0.6);
   displaced.z+=t*uPush*2.0;
   displaced.x+=cos(angle)*t*uPush;
   displaced.y+=sin(angle)*t*uPush;
 
-  // Twinkle + cursor/touch glow: stars under the pointer brighten, then dim
-  // back down as the touch trail decays — leaving a fading trail.
+  // Twinkle + cursor/touch glow; ant particles settle a touch dimmer
   float twinkle=sin(uTime*1.5+pindex*0.5)*0.3+0.7;
-  vBrightness=brightness*twinkle + t*1.4;
+  vBrightness=brightness*twinkle*mix(1.0,0.82,f) + t*1.4;
 
   vec4 mvPos=modelViewMatrix*vec4(displaced,1.0);
   gl_PointSize=size*uSize*(1.0+t*0.35);
@@ -557,6 +573,8 @@ void main(){
 
   // Create particles
   const positions = new Float32Array(PARTICLE_COUNT * 3);
+  const antTargets = new Float32Array(PARTICLE_COUNT * 3);
+  const isAnt = new Float32Array(PARTICLE_COUNT);
   const pindices = new Float32Array(PARTICLE_COUNT);
   const angles = new Float32Array(PARTICLE_COUNT);
   const sizes = new Float32Array(PARTICLE_COUNT);
@@ -567,10 +585,16 @@ void main(){
     positions[i * 3] = (Math.random() - 0.5) * w * 1.2;
     positions[i * 3 + 1] = (Math.random() - 0.5) * h * 1.2;
     positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+    // default target = home (overwritten for ant particles after sampling)
+    antTargets[i * 3] = positions[i * 3];
+    antTargets[i * 3 + 1] = positions[i * 3 + 1];
+    antTargets[i * 3 + 2] = 0;
+    isAnt[i] = 0;
     pindices[i] = i;
     angles[i] = Math.random() * Math.PI * 2;
-    sizes[i] = Math.random() * 1.5 + 0.5;
-    brightnesses[i] = Math.random() * 0.6 + 0.2;
+    // ant particles (first ANT_COUNT) are a touch finer
+    sizes[i] = i < ANT_COUNT ? Math.random() * 0.9 + 0.5 : Math.random() * 1.5 + 0.5;
+    brightnesses[i] = i < ANT_COUNT ? Math.random() * 0.4 + 0.45 : Math.random() * 0.6 + 0.2;
   }
 
   const geom = new THREE.BufferGeometry();
@@ -578,7 +602,11 @@ void main(){
   const instGeom = new THREE.InstancedBufferGeometry();
   instGeom.index = geom.index;
   instGeom.attributes.position = geom.attributes.position;
+  const antAttr = new THREE.InstancedBufferAttribute(antTargets, 3);
+  const isAntAttr = new THREE.InstancedBufferAttribute(isAnt, 1);
   instGeom.setAttribute('offset', new THREE.InstancedBufferAttribute(positions, 3));
+  instGeom.setAttribute('antTarget', antAttr);
+  instGeom.setAttribute('isAnt', isAntAttr);
   instGeom.setAttribute('pindex', new THREE.InstancedBufferAttribute(pindices, 1));
   instGeom.setAttribute('angle', new THREE.InstancedBufferAttribute(angles, 1));
   instGeom.setAttribute('size', new THREE.InstancedBufferAttribute(sizes, 1));
@@ -596,6 +624,7 @@ void main(){
       // how far stars are pushed from the pointer — much smaller on mobile so
       // the movement stays tight to the finger
       uPush: { value: window.innerWidth < 768 ? 9.0 : 20.0 },
+      uForm: { value: 0 },
       uTouch: { value: touchTex.texture },
       uResolution: { value: new THREE.Vector2(w, h) },
     },
@@ -606,6 +635,64 @@ void main(){
 
   const points = new THREE.Points(instGeom, material);
   scene.add(points);
+
+  // ---- Project Celestra ant: a segment of the starfield assembles into the
+  // ant silhouette when its section scrolls into view (and disperses when it
+  // leaves). Targets follow the section's anchor as the page scrolls. ----
+  const antAnchor = document.getElementById('celestra-ant');
+  let antPts = null, antReady = false;
+
+  function sampleAnt() {
+    const SZ = 200;
+    const aw = SZ, ah = Math.round(SZ * 676 / 738);   // preserve mask aspect
+    const off = document.createElement('canvas');
+    off.width = aw; off.height = ah;
+    const octx = off.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      octx.clearRect(0, 0, aw, ah);
+      try { octx.drawImage(img, 0, 0, aw, ah); } catch (e) { return; }
+      const data = octx.getImageData(0, 0, aw, ah).data;
+      const pts = [];
+      for (let y = 0; y < ah; y++)
+        for (let x = 0; x < aw; x++)
+          if (data[(y * aw + x) * 4 + 3] > 60) pts.push({ u: x / aw, v: y / ah });
+      for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = pts[i]; pts[i] = pts[j]; pts[j] = t; }
+      antPts = pts;
+      const n = Math.min(ANT_COUNT, pts.length);
+      for (let k = 0; k < n; k++) isAnt[k] = 1;
+      isAntAttr.needsUpdate = true;
+      antReady = true;
+    };
+    img.onerror = () => {};
+    img.src = 'assets/ant-mask.png';
+  }
+  sampleAnt();
+
+  function updateAntTargets(r) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const n = Math.min(ANT_COUNT, antPts.length);
+    for (let k = 0; k < n; k++) {
+      const p = antPts[k];
+      const sx = r.left + p.u * r.width;     // screen px
+      const sy = r.top + p.v * r.height;
+      antTargets[k * 3] = sx - W / 2;        // → world (centre origin, y up)
+      antTargets[k * 3 + 1] = H / 2 - sy;
+    }
+    antAttr.needsUpdate = true;
+  }
+
+  // assemble/disperse based on how centred the anchor is in the viewport
+  function updateAnt() {
+    if (!antReady) return;
+    const r = antAnchor.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const cy = r.top + r.height / 2;
+    const vis = Math.max(0, Math.min(1, 1 - Math.abs(cy - vh * 0.5) / (vh * 0.62)));
+    const u = material.uniforms.uForm;
+    u.value += (vis - u.value) * 0.08;
+    if (vis > 0.02 || u.value > 0.02) updateAntTargets(r);
+  }
 
   // Mouse/touch events â€” map screen coords to 0-1 UV for the touch texture
   function addPoint(clientX, clientY, id) {
@@ -646,6 +733,7 @@ void main(){
     const dt = Math.min((now - lastRender) / 1000, 0.05);
     lastRender = now;
     material.uniforms.uTime.value += dt;
+    updateAnt();
     touchTex.update();
     renderer.render(scene, camera);
   }
