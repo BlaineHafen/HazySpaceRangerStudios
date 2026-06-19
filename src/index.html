@@ -182,12 +182,40 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   50%{opacity:0}
 }
 
+/* ===================== GAMES TRANSITION DIVIDER ===================== */
+.transition{
+  position:relative;
+  z-index:2;
+  width:100%;
+  min-height:560px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:20px;
+  background:transparent;
+}
+.transition-line{
+  width:2px;height:220px;
+  background:rgba(255,255,255,.55);
+  border-radius:1px;
+}
+.transition h3{
+  font-family:'Anta',sans-serif;
+  font-size:24px;
+  font-weight:400;
+  color:#fff;
+}
+
 /* ===================== PROJECT CELESTRA ===================== */
 .celestra{
   position:relative;
   z-index:2;
   width:100%;
-  min-height:820px;
+  /* at least a full viewport tall so the centred ant can always be scrolled
+     into view — it's the last section, so a shorter section can't be reached
+     on tall screens */
+  min-height:100vh;
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -237,6 +265,8 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .hero-logo{width:120px;height:120px;margin-bottom:32px}
   .hero-headline{font-size:32px;white-space:normal}
   .hero-body{font-size:16px}
+  .transition{min-height:380px;gap:16px}
+  .transition-line{height:130px}
   .celestra{padding:80px 16px;min-height:0}
   .celestra h2{font-size:28px}
   .celestra p{font-size:16px}
@@ -302,6 +332,13 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
       <div class="hero-body" id="hero-body"></div>
     </div>
   </div>
+</section>
+
+<!-- Games transition divider -->
+<section class="transition" id="transition">
+  <span class="transition-line"></span>
+  <h3>Games</h3>
+  <span class="transition-line"></span>
 </section>
 
 <!-- Project Celestra Section -->
@@ -775,7 +812,16 @@ void main(){
 
   // Each bar: a centerline that enters diagonally at the top then runs straight
   // down the right side. Geometry is derived from the viewport so it scales.
-  const bars = COLORS.map(color => ({ color, pts: null, cum: null, L: 0, barW: 0, progress: 0, startTime: 0, running: false }));
+  const bars = COLORS.map(color => ({ color, pts: null, cum: null, L: 0, barW: 0, progress: 0, dissolve: 0, startTime: 0, running: false }));
+
+  // Reverse-dissolve scroll windows (fraction of one viewport scrolled), in
+  // REVERSE reveal order — yellow (i=3) dissolves first, purple (i=0) last.
+  const DISSOLVE = [
+    { s: 0.60, e: 1.00 },  // purple  (i=0) — last to go
+    { s: 0.40, e: 0.80 },  // magenta (i=1)
+    { s: 0.20, e: 0.60 },  // red     (i=2)
+    { s: 0.00, e: 0.40 },  // yellow  (i=3) — first to go
+  ];
 
   function setPts(b, pts, barW) {
     const l0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
@@ -783,43 +829,46 @@ void main(){
     b.pts = pts; b.cum = [0, l0, l0 + l1]; b.L = l0 + l1; b.barW = barW;
   }
 
-  // Desktop: vertical runs down the right side, each top kicking out diagonally
-  // up-RIGHT to the top edge (elbow points left); staggered down-right.
-  function buildDesktop() {
-    const barW = Math.max(15 * DPR, 0.026 * W);   // Figma stripe width (~37px @1440)
+  // Vertical runs down the right side, each top kicking out diagonally up-RIGHT
+  // to the top edge (elbow points left); staggered down-right. The bar bottoms
+  // are STAGGERED (stair-stepped) — purple shortest, yellow longest. Shared by
+  // desktop and mobile (mobile just uses tighter sizing + a tighter right edge).
+  function buildBars(cfg) {
+    const { barW, stepX, stepY, edgeX, bendY0, bottom0, bottomStep } = cfg;
     const pad = barW * 2;
-    const stepX = 0.042 * W;          // center spacing (Figma ~60px @1440)
-    const stepY = stepX * 0.5;        // downward stagger per bar (Figma ~2:1)
-    const edgeX = 0.935 * W;          // innermost (yellow) vertical — nudged left
     const xv0 = edgeX - 3 * stepX;    // outermost (purple) vertical-run x
-    const bendY0 = 0.15 * VH;         // base elbow height (relative to viewport top)
     bars.forEach((b, k) => {
       const xv = xv0 + k * stepX, bendY = bendY0 + k * stepY;
+      const bottomY = Math.min((bottom0 + k * bottomStep) * VH, H); // stair-step
       setPts(b, [
         { x: xv + (bendY + pad), y: -pad },   // entry: 45° up to the top-right
         { x: xv, y: bendY },                  // elbow
-        { x: xv, y: H + barW * 4 },           // run off the bottom
+        { x: xv, y: bottomY },                // staggered bottom (stair-step)
       ], barW);
     });
   }
 
-  // Mobile: horizontal runs across the top, each hooking down-RIGHT off the
-  // edge (elbow points up-left); staggered down-left (Figma mobile pattern).
+  function buildDesktop() {
+    buildBars({
+      barW: Math.max(15 * DPR, 0.026 * W),   // Figma stripe width (~37px @1440)
+      stepX: 0.042 * W,                      // center spacing (Figma ~60px @1440)
+      stepY: 0.042 * W * 0.5,                // downward stagger (Figma ~2:1)
+      edgeX: 0.935 * W,                      // innermost (yellow) vertical
+      bendY0: 0.15 * VH,                     // base elbow height (vs viewport top)
+      bottom0: 1.15, bottomStep: 0.2,        // bottoms at 1.15→1.75 viewport-heights
+    });
+  }
+
+  // Mobile: same vertical-right orientation (the updated comp), tighter sizing
+  // and nearer the right edge.
   function buildMobile() {
-    const barW = Math.max(7 * DPR, 0.03 * W);
-    const pad = barW * 2;
-    const stepY = barW * 1.4;          // vertical spacing between runs
-    const stepX = stepY * 0.5;         // leftward stagger per bar (~1:2 left:down)
-    const runY0 = Math.max(0.085 * VH, 70 * DPR);  // top run, just below the nav
-    const elbowX0 = 0.55 * W;          // purple elbow (rightmost); lower bars bend further left
-    const far = VH + W;                // run down-right off the first screen
-    bars.forEach((b, k) => {
-      const runY = runY0 + k * stepY, elbowX = elbowX0 - k * stepX;
-      setPts(b, [
-        { x: -pad, y: runY },                 // enter from off the left edge
-        { x: elbowX, y: runY },               // elbow
-        { x: elbowX + far, y: runY + far },   // diagonal down-right off-screen
-      ], barW);
+    buildBars({
+      barW: Math.max(6 * DPR, 0.022 * W),
+      stepX: 0.05 * W,
+      stepY: 0.05 * W * 0.5,
+      edgeX: 0.95 * W,
+      bendY0: 0.09 * VH,
+      bottom0: 0.85, bottomStep: 0.16,
     });
   }
 
@@ -851,9 +900,13 @@ void main(){
   }
 
   function drawBar(b) {
-    if (b.progress <= 0) return;
+    // effective progress = how much it has revealed, minus how much it has
+    // dissolved back (scroll-driven). As dissolve rises, the bar retracts from
+    // its leading (bottom) edge back into halftone — a reverse of the reveal.
+    const prog = b.progress * (1 - (b.dissolve || 0));
+    if (prog <= 0) return;
     const band = b.L * 0.16;                       // halftone transition length
-    const revealed = b.progress * (b.L + band);
+    const revealed = prog * (b.L + band);
     const solidLen = revealed - band;
 
     // solid portion: stroke the centerline up to solidLen
@@ -928,6 +981,25 @@ void main(){
       if (rafId === null) rafId = requestAnimationFrame(tick);
     }
   };
+
+  // Scroll-driven reverse dissolve: as the page scrolls down, each bar dissolves
+  // back into halftone, in reverse reveal order, gone by ~1 viewport of scroll.
+  let scrollRaf = null;
+  function applyScrollDissolve() {
+    scrollRaf = null;
+    const frac = window.scrollY / (window.innerHeight * 0.9);
+    let changed = false;
+    bars.forEach((b, i) => {
+      const d = DISSOLVE[i];
+      const nv = Math.max(0, Math.min(1, (frac - d.s) / (d.e - d.s)));
+      if (Math.abs(nv - b.dissolve) > 0.001) { b.dissolve = nv; changed = true; }
+    });
+    // only repaint here when the reveal loop is idle (otherwise tick handles it)
+    if (changed && rafId === null) redrawStatic();
+  }
+  window.addEventListener('scroll', () => {
+    if (scrollRaf === null) scrollRaf = requestAnimationFrame(applyScrollDissolve);
+  }, { passive: true });
 
   let resizeTimer = null;
   window.addEventListener('resize', () => {
