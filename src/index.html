@@ -682,13 +682,16 @@ void main(){
     antAttr.needsUpdate = true;
   }
 
-  // assemble/disperse based on how centred the anchor is in the viewport
+  // assemble as the section scrolls UP into view (full once its top has risen
+  // ~70% of the way up the viewport), hold while it's on screen, disperse when
+  // scrolled back toward the hero. Based on the anchor's top entering the
+  // viewport so it's always reachable, even when the section is shorter than
+  // the viewport (the last section on tall screens).
   function updateAnt() {
     if (!antReady) return;
     const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
-    const cy = r.top + r.height / 2;
-    const vis = Math.max(0, Math.min(1, 1 - Math.abs(cy - vh * 0.5) / (vh * 0.62)));
+    const vis = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.7)));
     const u = material.uniforms.uForm;
     u.value += (vis - u.value) * 0.08;
     if (vis > 0.02 || u.value > 0.02) updateAntTargets(r);
