@@ -437,6 +437,7 @@ attribute float brightness;
 uniform float uTime;
 uniform float uDepth;
 uniform float uSize;
+uniform float uPush;
 uniform sampler2D uTouch;
 uniform vec2 uResolution;
 
@@ -458,9 +459,9 @@ void main(){
     1.0-((displaced.y/uResolution.y)+0.5)
   );
   float t=texture2D(uTouch,touchUV).r;
-  displaced.z+=t*40.0;
-  displaced.x+=cos(angle)*t*20.0;
-  displaced.y+=sin(angle)*t*20.0;
+  displaced.z+=t*uPush*2.0;
+  displaced.x+=cos(angle)*t*uPush;
+  displaced.y+=sin(angle)*t*uPush;
 
   // Twinkle + cursor/touch glow: stars under the pointer brighten, then dim
   // back down as the touch trail decays — leaving a fading trail.
@@ -488,6 +489,9 @@ void main(){
       this.size = TOUCH_SIZE;
       this.trail = [];
       this.last = {};          // per-pointer last position, keyed by id (mouse / finger)
+      // radius of the glow/displacement splat as a fraction of the screen —
+      // much tighter on mobile so the effect stays focused under the finger
+      this.radiusFactor = window.innerWidth < 768 ? 0.045 : 0.13;
       this.canvas = document.createElement('canvas');
       this.canvas.width = this.canvas.height = this.size;
       this.ctx = this.canvas.getContext('2d');
@@ -521,7 +525,7 @@ void main(){
         p.age++;
         if (p.age > LIFE) { this.trail.splice(i, 1); continue; }
         const intensity = (1 - p.age / LIFE) * Math.max(p.force, 0.2) * (p.scale || 1);
-        const rad = this.size * 0.13 * Math.min(intensity, 1.0);   // size capped
+        const rad = this.size * this.radiusFactor * Math.min(intensity, 1.0);   // size capped
         const px = p.x * this.size, py = (1 - p.y) * this.size;
         const g = this.ctx.createRadialGradient(px, py, 0, px, py, rad);
         g.addColorStop(0, `rgba(255,255,255,${Math.min(1, 0.85 * intensity)})`);
@@ -589,6 +593,9 @@ void main(){
       // stars are smaller on mobile (they read proportionally larger on a small
       // viewport, so the field needs a finer point size there)
       uSize: { value: window.innerWidth < 768 ? 2.2 : 4.0 },
+      // how far stars are pushed from the pointer — much smaller on mobile so
+      // the movement stays tight to the finger
+      uPush: { value: window.innerWidth < 768 ? 9.0 : 20.0 },
       uTouch: { value: touchTex.texture },
       uResolution: { value: new THREE.Vector2(w, h) },
     },
@@ -657,6 +664,8 @@ void main(){
     camera.updateProjectionMatrix();
     material.uniforms.uResolution.value.set(w2, h2);
     material.uniforms.uSize.value = w2 < 768 ? 2.2 : 4.0;
+    material.uniforms.uPush.value = w2 < 768 ? 9.0 : 20.0;
+    touchTex.radiusFactor = w2 < 768 ? 0.045 : 0.13;
   });
 })();
 </script>
