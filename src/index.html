@@ -264,8 +264,11 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .nav-cursive{display:block}
   .nav-burger{display:flex}
   .nav-menu{display:flex}
-  .hero{padding:140px 16px 40px;min-height:600px;justify-content:flex-start}
-  .hero-logo{width:120px;height:120px;margin-bottom:32px}
+  .hero{padding:100px 20px 40px;min-height:600px;justify-content:flex-start}
+  /* keep logo + text in a narrow left column so they never collide with the
+     right-side racing stripes (which start at ~80% of the width) */
+  .hero-content{max-width:62vw}
+  .hero-logo{width:100px;height:100px;margin-bottom:24px}
   .hero-headline{font-size:32px;white-space:normal}
   .hero-body{font-size:16px}
   .transition{min-height:380px;gap:16px}
@@ -724,17 +727,32 @@ void main(){
     antAttr.needsUpdate = true;
   }
 
-  // assemble as the section scrolls UP into view, fully formed once the whole
-  // anchor (legs included) is on screen, so the ant is never cut off when it
-  // settles. Ramps with the anchor height, so it's reachable on any viewport.
+  // The ant assembly is a ONE-SHOT, time-based animation (like the stripes):
+  // crossing a scroll point triggers it and it plays on its own (uForm 0→1),
+  // holds, and only reverses (1→0) when you scroll back up past the trigger.
+  // It is NOT scrubbed by scroll position. While formed, the targets still
+  // follow the anchor so the ant stays attached to the scrolling section.
+  const ANT_FORM_DUR = 2200;
+  const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  let antFormed = false, formFrom = 0, formTarget = 0, formStart = 0;
+
   function updateAnt() {
     if (!antReady) return;
     const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
-    const vis = Math.max(0, Math.min(1, (vh - r.top) / r.height));
+    // trigger with hysteresis: assemble once the anchor top rises above 60% of
+    // the viewport; disperse only after it falls back below 95%.
+    if (!antFormed && r.top < vh * 0.6) {
+      antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
+    } else if (antFormed && r.top > vh * 0.95) {
+      antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
+    }
     const u = material.uniforms.uForm;
-    u.value += (vis - u.value) * 0.08;
-    if (vis > 0.02 || u.value > 0.02) updateAntTargets(r);
+    if (u.value !== formTarget) {
+      const t = Math.min((performance.now() - formStart) / ANT_FORM_DUR, 1);
+      u.value = formFrom + (formTarget - formFrom) * easeIO(t);
+    }
+    if (u.value > 0.01 || formTarget > 0) updateAntTargets(r);
   }
 
   // Mouse/touch events â€” map screen coords to 0-1 UV for the touch texture
@@ -811,7 +829,7 @@ void main(){
 
   const canvas = document.getElementById('stripes-canvas');
   const ctx = canvas.getContext('2d');
-  let W = 0, H = 0, VH = 0;   // W=width, H=document height, VH=viewport height (all device px)
+  let W = 0, H = 0, VH = 0, MB = 0;   // W=width, H=document height, VH=viewport, MB=marquee bottom (device px)
 
   // Each bar: a centerline that enters diagonally at the top then runs straight
   // down the right side. Geometry is derived from the viewport so it scales.
@@ -832,20 +850,20 @@ void main(){
   }
 
   // Vertical runs down the right side, each top kicking out diagonally up-RIGHT
-  // to the top edge (elbow points left); staggered down-right. The bar bottoms
-  // are STAGGERED (stair-stepped) — purple shortest, yellow longest. Shared by
-  // desktop and mobile (mobile just uses tighter sizing + a tighter right edge).
+  // to the top edge (elbow points left); staggered tops, but all ending at a
+  // COMMON bottom = the marquee/hero bottom (per the updated comp). So purple
+  // (highest elbow) is longest, yellow shortest. Shared by desktop and mobile.
   function buildBars(cfg) {
-    const { barW, stepX, stepY, edgeX, bendY0, bottom0, bottomStep } = cfg;
+    const { barW, stepX, stepY, edgeX, bendY0 } = cfg;
     const pad = barW * 2;
-    const xv0 = edgeX - 3 * stepX;    // outermost (purple) vertical-run x
+    const xv0 = edgeX - 3 * stepX;        // outermost (purple) vertical-run x
+    const bottomY = Math.min(MB, H);      // common bottom = marquee bottom
     bars.forEach((b, k) => {
       const xv = xv0 + k * stepX, bendY = bendY0 + k * stepY;
-      const bottomY = Math.min((bottom0 + k * bottomStep) * VH, H); // stair-step
       setPts(b, [
         { x: xv + (bendY + pad), y: -pad },   // entry: 45° up to the top-right
-        { x: xv, y: bendY },                  // elbow
-        { x: xv, y: bottomY },                // staggered bottom (stair-step)
+        { x: xv, y: bendY },                  // elbow (staggered top)
+        { x: xv, y: bottomY },                // common bottom (marquee bottom)
       ], barW);
     });
   }
@@ -857,7 +875,6 @@ void main(){
       stepY: 0.042 * W * 0.5,                // downward stagger (Figma ~2:1)
       edgeX: 0.935 * W,                      // innermost (yellow) vertical
       bendY0: 0.15 * VH,                     // base elbow height (vs viewport top)
-      bottom0: 1.15, bottomStep: 0.2,        // bottoms at 1.15→1.75 viewport-heights
     });
   }
 
@@ -870,7 +887,6 @@ void main(){
       stepY: 0.05 * W * 0.5,
       edgeX: 0.95 * W,
       bendY0: 0.09 * VH,
-      bottom0: 0.85, bottomStep: 0.16,
     });
   }
 
@@ -880,9 +896,12 @@ void main(){
     // inflate the page, then size the canvas to span the whole document
     canvas.style.height = '0px';
     const cssH = Math.max(document.documentElement.scrollHeight, window.innerHeight);
+    const hero = document.querySelector('.hero');
+    const heroBottomCss = hero ? (hero.offsetTop + hero.offsetHeight) : window.innerHeight;
     W = Math.round(cssW * DPR);
     VH = Math.round(window.innerHeight * DPR);
     H = Math.round(cssH * DPR);
+    MB = Math.round(heroBottomCss * DPR);   // marquee/hero bottom — stripes end here
     canvas.width = W;
     canvas.height = H;
     canvas.style.width = '100%';
