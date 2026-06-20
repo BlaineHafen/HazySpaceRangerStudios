@@ -254,6 +254,35 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   pointer-events:none;
 }
 
+/* Mobile-only framed ant illustration (the particle ant is desktop-only) */
+.celestra-img{
+  display:none;
+  position:relative;z-index:2;
+  width:100%;
+  aspect-ratio:798 / 766;
+  margin-top:32px;
+  border:8px solid rgba(255,255,255,.5);
+  border-radius:4px;
+  overflow:hidden;
+  background:#050505;
+}
+.celestra-img img{display:block;width:100%;height:100%;object-fit:cover}
+
+/* Mobile-only marquee CTA ("Join The Crew") */
+.hero-cta{
+  display:none;
+  align-items:center;justify-content:center;
+  margin-top:28px;padding:12px 20px;
+  border:1px solid #a7a7a7;
+  color:#a7a7a7;
+  font-family:'Anta',sans-serif;font-size:18px;
+  text-decoration:none;
+  opacity:0;
+  transition:opacity .5s ease, color .3s, border-color .3s;
+}
+.hero-cta.visible{opacity:1}
+.hero-cta:hover,.hero-cta:active{color:#fff;border-color:#fff}
+
 /* ===================== RESPONSIVE ===================== */
 @media(max-width:768px){
   .nav{padding:16px}
@@ -276,9 +305,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .celestra{padding:80px 16px;min-height:0}
   .celestra h2{font-size:28px}
   .celestra p{font-size:16px}
-  /* mobile: ant is a full-width block below the text (per the mobile comp);
-     height auto so the aspect-ratio drives it (don't inherit the desktop height) */
-  .celestra-ant{position:relative;right:auto;top:auto;transform:none;width:100%;height:auto;margin-top:32px}
+  /* mobile: the particle ant is desktop-only — show the framed illustration */
+  .celestra-ant{display:none}
+  .celestra-img{display:block}
+  .hero-cta{display:inline-flex}
 }
 </style>
 </head>
@@ -339,6 +369,9 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
       <div class="hero-headline" id="hero-headline"></div>
       <div class="hero-body" id="hero-body"></div>
     </div>
+
+    <!-- Mobile-only marquee CTA -->
+    <a href="#" class="hero-cta" id="hero-cta">Join The Crew</a>
   </div>
 </section>
 
@@ -355,8 +388,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     <h2>Project Celestra</h2>
     <p>Our first voyage. A tabletop adventure charting the far edge of the known galaxy — strange worlds, fierce crews, and everything waiting Out There. Transmissions incoming.</p>
   </div>
-  <!-- the starfield assembles into the ant here -->
+  <!-- desktop: the starfield assembles into the ant here -->
   <div class="celestra-ant" id="celestra-ant"></div>
+  <!-- mobile: framed ant illustration -->
+  <div class="celestra-img"><img src="assets/ant.webp" alt="Project Celestra — warrior ant" /></div>
 </section>
 
 <script>
@@ -374,6 +409,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   const heroText = document.getElementById('hero-text');
   const heroHeadline = document.getElementById('hero-headline');
   const heroBody = document.getElementById('hero-body');
+  const heroCta = document.getElementById('hero-cta');
 
   function begin() {
     // Reveal the background layers
@@ -391,6 +427,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
           heroBody.classList.add('done');
           const cursor = heroBody.querySelector('.cursor');
           if (cursor) cursor.remove();
+          heroCta.classList.add('visible');   // mobile CTA fades in after the copy
         });
       });
     }, FORM_DELAY);
@@ -750,6 +787,8 @@ void main(){
 
   function updateAnt() {
     if (!antReady) return;
+    // particle ant is desktop-only; on mobile the framed illustration is shown
+    if (window.innerWidth < 768) { material.uniforms.uForm.value = 0; return; }
     const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
     // trigger with hysteresis, off the anchor BOTTOM so the whole ant (legs
