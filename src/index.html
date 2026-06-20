@@ -247,7 +247,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   right:6%;
   top:50%;
   transform:translateY(-50%);
-  height:min(620px,72vh);
+  height:min(560px,66vh);
   aspect-ratio:738 / 676;   /* width is derived from height */
   width:auto;
   z-index:1;
@@ -276,7 +276,9 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .celestra{padding:80px 16px;min-height:0}
   .celestra h2{font-size:28px}
   .celestra p{font-size:16px}
-  .celestra-ant{position:relative;right:auto;top:auto;transform:none;width:100%;margin-top:32px}
+  /* mobile: ant is a full-width block below the text (per the mobile comp);
+     height auto so the aspect-ratio drives it (don't inherit the desktop height) */
+  .celestra-ant{position:relative;right:auto;top:auto;transform:none;width:100%;height:auto;margin-top:32px}
 }
 </style>
 </head>
@@ -496,7 +498,10 @@ uniform vec2 uResolution;
 varying float vBrightness;
 
 void main(){
-  float f = isAnt * uForm;   // how assembled into the ant this particle is
+  // per-particle randomness so the ant forms like a SWARM, not a solid block:
+  // each star has its own staggered formation window and its own curved flight
+  float seed = fract(sin(pindex * 12.9898) * 43758.5453);
+  float f = isAnt * smoothstep(seed * 0.55, seed * 0.55 + 0.45, uForm);
 
   // Free-floating home position with simplex drift (fades as it locks in)
   vec3 displaced=offset;
@@ -511,7 +516,14 @@ void main(){
   target.x+=sin(uTime*0.7+pindex)*1.0;
   target.y+=cos(uTime*0.6+pindex*1.2)*1.0;
 
-  displaced=mix(displaced,target,f);
+  // travel along a curved path: swing out perpendicular and back (peaks mid-
+  // flight, zero at both ends) so stars arc in/out organically instead of
+  // sliding straight, and the per-particle direction/amount varies
+  vec3 path = mix(displaced, target, f);
+  float arc = sin(f * 3.14159265) * (35.0 + seed * 75.0);
+  path.x += cos(angle) * arc;
+  path.y += sin(angle) * arc;
+  displaced = path;
 
   // Touch displacement (mostly ignored once locked into the ant)
   vec2 touchUV=vec2(
@@ -740,11 +752,13 @@ void main(){
     if (!antReady) return;
     const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
-    // trigger with hysteresis: assemble once the anchor top rises above 60% of
-    // the viewport; disperse only after it falls back below 95%.
-    if (!antFormed && r.top < vh * 0.6) {
+    // trigger with hysteresis, off the anchor BOTTOM so the whole ant (legs
+    // included) is on screen before it assembles: assemble once the bottom is
+    // comfortably in view (above 90% of the viewport); disperse after the
+    // bottom drops back below 110% (scrolled away).
+    if (!antFormed && r.bottom < vh * 0.9) {
       antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
-    } else if (antFormed && r.top > vh * 0.95) {
+    } else if (antFormed && r.bottom > vh * 1.1) {
       antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
     }
     const u = material.uniforms.uForm;
