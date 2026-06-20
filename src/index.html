@@ -239,14 +239,17 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   color:#fff;
   max-width:435px;
 }
-/* invisible anchor — marks where the particle ant assembles (right side) */
+/* invisible anchor — marks where the particle ant assembles (right side).
+   Sized by HEIGHT (capped to the viewport) and width derived from the aspect
+   ratio, so the whole ant — legs included — always fits on screen. */
 .celestra-ant{
   position:absolute;
   right:6%;
   top:50%;
   transform:translateY(-50%);
-  width:min(52vw,680px);
-  aspect-ratio:738 / 676;
+  height:min(620px,72vh);
+  aspect-ratio:738 / 676;   /* width is derived from height */
+  width:auto;
   z-index:1;
   pointer-events:none;
 }
@@ -440,7 +443,7 @@ import * as THREE from 'three';
 (() => {
   const PARTICLE_COUNT = 5600;
   const ANT_COUNT = 2600;       // first N particles assemble into the ant
-  const TOUCH_SIZE = 64;
+  const TOUCH_SIZE = 96;   // higher-res touch field so a tight glow stays smooth
 
   // --- Simplex 2D noise (inline GLSL) ---
   const snoise2D = `
@@ -544,7 +547,7 @@ void main(){
       this.last = {};          // per-pointer last position, keyed by id (mouse / finger)
       // radius of the glow/displacement splat as a fraction of the screen —
       // much tighter on mobile so the effect stays focused under the finger
-      this.radiusFactor = window.innerWidth < 768 ? 0.045 : 0.13;
+      this.radiusFactor = window.innerWidth < 768 ? 0.03 : 0.045;
       this.canvas = document.createElement('canvas');
       this.canvas.width = this.canvas.height = this.size;
       this.ctx = this.canvas.getContext('2d');
@@ -631,7 +634,9 @@ void main(){
     angles[i] = Math.random() * Math.PI * 2;
     // ant particles (first ANT_COUNT) are a touch finer
     sizes[i] = i < ANT_COUNT ? Math.random() * 1.0 + 0.7 : Math.random() * 1.5 + 0.5;
-    brightnesses[i] = i < ANT_COUNT ? Math.random() * 0.35 + 0.65 : Math.random() * 0.6 + 0.2;
+    // ant stars get a WIDE brightness spread (0.15–1.0) so the constellation
+    // has real value variation — some dim, some bright — and reads as lifelike
+    brightnesses[i] = i < ANT_COUNT ? Math.random() * 0.85 + 0.15 : Math.random() * 0.6 + 0.2;
   }
 
   const geom = new THREE.BufferGeometry();
@@ -719,16 +724,14 @@ void main(){
     antAttr.needsUpdate = true;
   }
 
-  // assemble as the section scrolls UP into view (full once its top has risen
-  // ~70% of the way up the viewport), hold while it's on screen, disperse when
-  // scrolled back toward the hero. Based on the anchor's top entering the
-  // viewport so it's always reachable, even when the section is shorter than
-  // the viewport (the last section on tall screens).
+  // assemble as the section scrolls UP into view, fully formed once the whole
+  // anchor (legs included) is on screen, so the ant is never cut off when it
+  // settles. Ramps with the anchor height, so it's reachable on any viewport.
   function updateAnt() {
     if (!antReady) return;
     const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
-    const vis = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.7)));
+    const vis = Math.max(0, Math.min(1, (vh - r.top) / r.height));
     const u = material.uniforms.uForm;
     u.value += (vis - u.value) * 0.08;
     if (vis > 0.02 || u.value > 0.02) updateAntTargets(r);
@@ -793,7 +796,7 @@ void main(){
     material.uniforms.uResolution.value.set(w2, h2);
     material.uniforms.uSize.value = w2 < 768 ? 2.2 : 4.0;
     material.uniforms.uPush.value = w2 < 768 ? 9.0 : 20.0;
-    touchTex.radiusFactor = w2 < 768 ? 0.045 : 0.13;
+    touchTex.radiusFactor = w2 < 768 ? 0.03 : 0.045;
   });
 })();
 </script>
@@ -812,16 +815,15 @@ void main(){
 
   // Each bar: a centerline that enters diagonally at the top then runs straight
   // down the right side. Geometry is derived from the viewport so it scales.
-  const bars = COLORS.map(color => ({ color, pts: null, cum: null, L: 0, barW: 0, progress: 0, dissolve: 0, startTime: 0, running: false }));
+  const bars = COLORS.map(color => ({
+    color, pts: null, cum: null, L: 0, barW: 0,
+    progress: 0, startTime: 0, running: false,
+    // time-based dissolve animation state (0 = solid, 1 = gone)
+    dissolve: 0, dissFrom: 0, dissTarget: 0, dissStart: 0,
+  }));
 
-  // Reverse-dissolve scroll windows (fraction of one viewport scrolled), in
-  // REVERSE reveal order — yellow (i=3) dissolves first, purple (i=0) last.
-  const DISSOLVE = [
-    { s: 0.60, e: 1.00 },  // purple  (i=0) — last to go
-    { s: 0.40, e: 0.80 },  // magenta (i=1)
-    { s: 0.20, e: 0.60 },  // red     (i=2)
-    { s: 0.00, e: 0.40 },  // yellow  (i=3) — first to go
-  ];
+  const DISS_DUR = 750;       // ms for one bar to dissolve / re-form
+  const DISS_STAGGER = 170;   // ms between bars
 
   function setPts(b, pts, barW) {
     const l0 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
@@ -953,11 +955,19 @@ void main(){
     ctx.clearRect(0, 0, W, H);
     let anyRunning = false;
     for (const b of bars) {
+      // load reveal animation
       if (b.running) {
         const t = Math.min((now - b.startTime) / REVEAL_DUR, 1);
         b.progress = easeInOutCubic(t);
         if (t >= 1) { b.progress = 1; b.running = false; }
         else anyRunning = true;
+      }
+      // time-based dissolve / re-form animation (scroll-triggered, plays on its own)
+      if (b.dissolve !== b.dissTarget) {
+        const dt = (now - b.dissStart) / DISS_DUR;
+        if (dt <= 0) { anyRunning = true; }                       // still in stagger delay
+        else if (dt >= 1) { b.dissolve = b.dissTarget; }
+        else { b.dissolve = b.dissFrom + (b.dissTarget - b.dissFrom) * easeInOutCubic(dt); anyRunning = true; }
       }
       drawBar(b);
     }
@@ -982,23 +992,37 @@ void main(){
     }
   };
 
-  // Scroll-driven reverse dissolve: as the page scrolls down, each bar dissolves
-  // back into halftone, in reverse reveal order, gone by ~1 viewport of scroll.
-  let scrollRaf = null;
-  function applyScrollDissolve() {
-    scrollRaf = null;
-    const frac = window.scrollY / (window.innerHeight * 0.9);
-    let changed = false;
+  // Reverse dissolve as a one-shot, time-based animation that fires when you
+  // scroll PAST a threshold (just past the marquee) — NOT scrubbed by scroll
+  // position. It plays on its own; the bars stay gone until you scroll back up
+  // above the trigger, which fires the re-form animation.
+  function animateDissolve(target, yellowFirst) {
+    const now = performance.now();
     bars.forEach((b, i) => {
-      const d = DISSOLVE[i];
-      const nv = Math.max(0, Math.min(1, (frac - d.s) / (d.e - d.s)));
-      if (Math.abs(nv - b.dissolve) > 0.001) { b.dissolve = nv; changed = true; }
+      b.dissFrom = b.dissolve;
+      b.dissTarget = target;
+      const order = yellowFirst ? (3 - i) : i;   // dissolve: yellow→purple; reform: purple→yellow
+      b.dissStart = now + order * DISS_STAGGER;
     });
-    // only repaint here when the reveal loop is idle (otherwise tick handles it)
-    if (changed && rafId === null) redrawStatic();
+    if (rafId === null) rafId = requestAnimationFrame(tick);
+  }
+
+  let dissolved = false, scrollRaf = null;
+  function onScrollCheck() {
+    scrollRaf = null;
+    const vh = window.innerHeight;
+    const downThreshold = vh * 0.55;   // scroll past ~half the marquee → dissolve
+    const upThreshold = vh * 0.45;     // back above this → re-form (hysteresis)
+    if (!dissolved && window.scrollY > downThreshold) {
+      dissolved = true;
+      animateDissolve(1, true);        // disappear, yellow first
+    } else if (dissolved && window.scrollY < upThreshold) {
+      dissolved = false;
+      animateDissolve(0, false);       // re-form, purple first
+    }
   }
   window.addEventListener('scroll', () => {
-    if (scrollRaf === null) scrollRaf = requestAnimationFrame(applyScrollDissolve);
+    if (scrollRaf === null) scrollRaf = requestAnimationFrame(onScrollCheck);
   }, { passive: true });
 
   let resizeTimer = null;
