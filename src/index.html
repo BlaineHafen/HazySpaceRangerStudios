@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- while the site is under active development, have browsers revalidate so
+     updates show up without a hard refresh (esp. mobile Safari) -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <title>Hazy Space Ranger Studios</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -259,12 +263,13 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   display:none;
   align-items:center;justify-content:center;
   margin-top:28px;padding:12px 20px;
+  background:#050505;              /* solid black infill so stars don't show through */
   border:1px solid #a7a7a7;
   color:#a7a7a7;
   font-family:'Anta',sans-serif;font-size:18px;
   text-decoration:none;
   opacity:0;
-  transition:opacity .5s ease, color .3s, border-color .3s;
+  transition:opacity .5s ease, color .3s, border-color .3s, background .3s;
 }
 .hero-cta.visible{opacity:1}
 .hero-cta:hover,.hero-cta:active{color:#fff;border-color:#fff}
