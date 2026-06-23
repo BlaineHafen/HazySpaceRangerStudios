@@ -291,9 +291,9 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .celestra{padding:80px 20px;min-height:0}
   .celestra h2{font-size:28px}
   .celestra p{font-size:16px}
-  /* mobile: the star/particle ant is a full-width block below the text (per the
-     mobile comp); height auto so the aspect ratio drives it */
-  .celestra-ant{position:relative;right:auto;top:auto;transform:none;width:100%;height:auto;margin-top:32px}
+  /* mobile: the star/particle ant sits below the text, sized to the ant
+     CREATURE in the comp (~70% of the viewport, not the full frame), centred */
+  .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(300px,72vw);height:auto;margin-top:32px}
   .hero-cta{display:inline-flex}
 }
 </style>
