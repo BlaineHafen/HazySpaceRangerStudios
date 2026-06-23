@@ -293,7 +293,9 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .hero-body{font-size:16px}
   .transition{min-height:380px;gap:16px}
   .transition-line{height:130px}
-  .celestra{padding:80px 20px;min-height:0}
+  /* extra bottom space so the ant's legs sit well clear of the iOS Safari
+     bottom toolbar / home indicator that overlays the bottom of the page */
+  .celestra{padding:80px 20px 180px;min-height:0}
   .celestra h2{font-size:28px}
   .celestra p{font-size:16px}
   /* mobile: the star/particle ant sits below the text, sized to the ant
