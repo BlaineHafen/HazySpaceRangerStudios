@@ -790,11 +790,10 @@ void main(){
     if (!antReady) return;
     const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
-    // Trigger: ant div's centre is anywhere in the viewport.
-    // Checked every frame (and on scroll events) so it fires regardless of
-    // rAF pausing, IO quirks, or iOS viewport height weirdness.
-    const centerY = r.top + r.height * 0.5;
-    const inView = r.height > 0 && centerY > -r.height && centerY < vh + r.height;
+    // Trigger: ant div is fully (or nearly fully) within the viewport so that
+    // all particles — including leg tips at V≈0.97 — map to on-screen coords.
+    const margin = 20; // px tolerance to start assembly just before fully in view
+    const inView = r.height > 0 && r.top >= -margin && r.bottom <= vh + margin;
     if (inView && !antFormed) {
       antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
     } else if (!inView && antFormed) {
