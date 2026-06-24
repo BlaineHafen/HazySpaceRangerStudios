@@ -475,9 +475,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 // === Interactive Particle Background ===
 import * as THREE from 'three';
 (() => {
-  const PARTICLE_COUNT = 5600;
-  const ANT_COUNT = 2600;       // first N particles assemble into the ant
-  const TOUCH_SIZE = 96;   // higher-res touch field so a tight glow stays smooth
+  const isMobile = window.innerWidth < 768;
+  const PARTICLE_COUNT = isMobile ? 2800 : 5600;
+  const ANT_COUNT     = isMobile ? 1300 : 2600;
+  const TOUCH_SIZE    = isMobile ? 64   : 96;
 
   // --- Simplex 2D noise (inline GLSL) ---
   const snoise2D = `
@@ -624,15 +625,23 @@ void main(){
     }
     endTouch(id) { delete this.last[id == null ? 'mouse' : id]; }
     update() {
-      this.ctx.fillStyle = 'rgba(0,0,0,0.08)';   // slower fade → trail lingers
+      const LIFE = 140;
+      // Skip GPU upload when trail is fully expired — saves texture bandwidth
+      // every idle frame. _idleFrames counts frames since the last touch point.
+      if (this.trail.length === 0) {
+        if (this._idleFrames >= LIFE) return;
+        this._idleFrames = (this._idleFrames || 0) + 1;
+      } else {
+        this._idleFrames = 0;
+      }
+      this.ctx.fillStyle = 'rgba(0,0,0,0.08)';
       this.ctx.fillRect(0, 0, this.size, this.size);
-      const LIFE = 140;                           // longer-lived trail
       for (let i = this.trail.length - 1; i >= 0; i--) {
         const p = this.trail[i];
         p.age++;
         if (p.age > LIFE) { this.trail.splice(i, 1); continue; }
         const intensity = (1 - p.age / LIFE) * Math.max(p.force, 0.2) * (p.scale || 1);
-        const rad = this.size * this.radiusFactor * Math.min(intensity, 1.0);   // size capped
+        const rad = this.size * this.radiusFactor * Math.min(intensity, 1.0);
         const px = p.x * this.size, py = (1 - p.y) * this.size;
         const g = this.ctx.createRadialGradient(px, py, 0, px, py, rad);
         g.addColorStop(0, `rgba(255,255,255,${Math.min(1, 0.85 * intensity)})`);
@@ -649,7 +658,7 @@ void main(){
   // --- Init ---
   const canvas = document.getElementById('particle-canvas');
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.0 : 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const scene = new THREE.Scene();
@@ -757,9 +766,8 @@ void main(){
       for (let k = 0; k < n; k++) isAnt[k] = 1;
       isAntAttr.needsUpdate = true;
       antReady = true;
-      if(window._antState) window._antState.ready = `true (${pts.length}pts)`;
     };
-    img.onerror = () => { if(window._antState) window._antState.ready = 'IMG_ERROR'; };
+    img.onerror = () => console.warn('ant-mask.png failed to load');
     img.src = 'assets/ant-mask.png';
   }
   sampleAnt();
@@ -799,7 +807,6 @@ void main(){
     } else if (!inView && antFormed) {
       antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
     }
-    if(window._antState){ window._antState.formed=antFormed; window._antState.target=formTarget; window._antState.form=material.uniforms.uForm.value; }
     const u = material.uniforms.uForm;
     if (u.value !== formTarget) {
       const t = Math.min((performance.now() - formStart) / ANT_FORM_DUR, 1);
