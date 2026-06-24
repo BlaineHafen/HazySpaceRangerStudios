@@ -829,6 +829,9 @@ void main(){
   window.addEventListener('touchmove', onTouch, { passive: true });
   window.addEventListener('touchend', onTouchEnd, { passive: true });
   window.addEventListener('touchcancel', onTouchEnd, { passive: true });
+  // iOS Safari pauses rAF during momentum scroll, so scroll events are the
+  // only reliable way to call updateAnt() while the page is coasting.
+  window.addEventListener('scroll', renderFrame, { passive: true });
 
   // Single render path, drivable by BOTH rAF and touch events. A min-interval
   // throttle de-dupes the two sources so we never double-render a frame.
