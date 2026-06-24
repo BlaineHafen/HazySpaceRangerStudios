@@ -785,21 +785,20 @@ void main(){
   const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   let antFormed = false, formFrom = 0, formTarget = 0, formStart = 0;
 
-  // IntersectionObserver drives the trigger — fires reliably during iOS
-  // momentum scroll even when rAF is paused (which kills the manual approach).
-  const antObserver = new IntersectionObserver(entries => {
-    const entry = entries[0];
-    if (entry.isIntersecting && entry.intersectionRatio >= 0.5 && !antFormed) {
-      antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
-    } else if (!entry.isIntersecting && entry.intersectionRatio < 0.3 && antFormed) {
-      antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
-    }
-  }, { threshold: [0, 0.3, 0.5, 0.85, 1.0] });
-  antObserver.observe(antAnchor);
-
   function updateAnt() {
     if (!antReady) return;
     const r = antAnchor.getBoundingClientRect();
+    const vh = window.innerHeight;
+    // Trigger: ant div's centre is anywhere in the viewport.
+    // Checked every frame (and on scroll events) so it fires regardless of
+    // rAF pausing, IO quirks, or iOS viewport height weirdness.
+    const centerY = r.top + r.height * 0.5;
+    const inView = r.height > 0 && centerY > -r.height && centerY < vh + r.height;
+    if (inView && !antFormed) {
+      antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
+    } else if (!inView && antFormed) {
+      antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
+    }
     const u = material.uniforms.uForm;
     if (u.value !== formTarget) {
       const t = Math.min((performance.now() - formStart) / ANT_FORM_DUR, 1);
