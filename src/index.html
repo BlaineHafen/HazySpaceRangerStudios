@@ -776,22 +776,21 @@ void main(){
   const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   let antFormed = false, formFrom = 0, formTarget = 0, formStart = 0;
 
+  // IntersectionObserver drives the trigger — fires reliably during iOS
+  // momentum scroll even when rAF is paused (which kills the manual approach).
+  const antObserver = new IntersectionObserver(entries => {
+    const entry = entries[0];
+    if (entry.isIntersecting && entry.intersectionRatio >= 0.5 && !antFormed) {
+      antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
+    } else if (!entry.isIntersecting && entry.intersectionRatio < 0.3 && antFormed) {
+      antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
+    }
+  }, { threshold: [0, 0.3, 0.5, 0.85, 1.0] });
+  antObserver.observe(antAnchor);
+
   function updateAnt() {
     if (!antReady) return;
     const r = antAnchor.getBoundingClientRect();
-    const vh = window.innerHeight;
-    // Trigger off how much of the anchor is actually on screen, so the WHOLE ant
-    // (legs included) is visible before it assembles — robust regardless of
-    // viewport height or where the anchor sits in the page. Assemble once ≥85%
-    // is visible AND its bottom (the legs) is on screen; disperse when it drops
-    // below 40% visible (scrolled away).
-    const visible = (Math.min(r.bottom, vh) - Math.max(r.top, 0));
-    const visibleFrac = r.height > 0 ? visible / r.height : 0;
-    if (!antFormed && visibleFrac > 0.85 && r.bottom < vh * 1.02) {
-      antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
-    } else if (antFormed && (visibleFrac < 0.4 || r.bottom > vh * 1.15)) {
-      antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
-    }
     const u = material.uniforms.uForm;
     if (u.value !== formTarget) {
       const t = Math.min((performance.now() - formStart) / ANT_FORM_DUR, 1);
