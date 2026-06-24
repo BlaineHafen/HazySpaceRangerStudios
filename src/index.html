@@ -390,7 +390,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 // === Intro animation sequence ===
 (() => {
   const TYPE_SPEED = 15;        // ms per character
-  const STRIPE_STAGGER = 220;   // delay between each stripe reveal
+  const STRIPE_STAGGER = 450;   // delay between each stripe reveal
   const FORM_DELAY = 300;       // wait before stripes/logo appear
   const TYPE_DELAY = 1100;      // wait before typing begins
 
@@ -883,7 +883,7 @@ void main(){
 // === Right-side Racing Stripes: diagonal→vertical bars, halftone top→down ===
 (() => {
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
-  const REVEAL_DUR = 2200;          // ms for one bar to fully form
+  const REVEAL_DUR = 3000;          // ms for one bar to fully form
   const COLORS = ['#360084', '#8F0178', '#DF1A58', '#F5B345'];
   const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
@@ -1008,7 +1008,7 @@ void main(){
 
     // halftone band: rows of dots across the bar width, shrinking toward the
     // leading edge so the bar "forms" out of dots as it sweeps along its length
-    const cell = b.barW * 0.34;
+    const cell = b.barW * 0.22;
     const maxR = cell * 0.5;
     const halfW = b.barW * 0.5;
     ctx.fillStyle = b.color;
