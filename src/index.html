@@ -521,6 +521,7 @@ uniform float uDepth;
 uniform float uSize;
 uniform float uPush;
 uniform float uForm;
+uniform float uScrollY;
 uniform sampler2D uTouch;
 uniform vec2 uResolution;
 
@@ -539,6 +540,12 @@ void main(){
   displaced.x+=n*8.0;
   displaced.y+=n2*8.0;
   displaced.z+=snoise(vec2(pindex*0.001,uTime*0.04))*uDepth;
+
+  // Parallax: stars closer to the camera (higher z) scroll faster than distant ones.
+  // Depth range is -100..+100; remap to 0..1 so near=1, far=0.
+  float depthFrac = (offset.z + 100.0) / 200.0;
+  // Blend out entirely when the ant is assembled so it stays locked in place.
+  displaced.y += uScrollY * depthFrac * 0.06 * (1.0 - f);
 
   // Ant target with a faint shimmer so the assembled ant still breathes
   vec3 target=antTarget;
@@ -711,6 +718,7 @@ void main(){
       // the movement stays tight to the finger
       uPush: { value: window.innerWidth < 768 ? 9.0 : 20.0 },
       uForm: { value: 0 },
+      uScrollY: { value: 0 },
       uTouch: { value: touchTex.texture },
       uResolution: { value: new THREE.Vector2(w, h) },
     },
@@ -836,12 +844,16 @@ void main(){
   // Single render path, drivable by BOTH rAF and touch events. A min-interval
   // throttle de-dupes the two sources so we never double-render a frame.
   let lastRender = performance.now();
+  let smoothScrollY = 0;
   function renderFrame() {
     const now = performance.now();
     if (now - lastRender < 13) return;            // cap ~75fps
     const dt = Math.min((now - lastRender) / 1000, 0.05);
     lastRender = now;
     material.uniforms.uTime.value += dt;
+    // Smooth the raw scroll value so parallax eases rather than snapping.
+    smoothScrollY += (window.scrollY - smoothScrollY) * Math.min(dt * 4, 1);
+    material.uniforms.uScrollY.value = smoothScrollY;
     updateAnt();
     touchTex.update();
     renderer.render(scene, camera);
