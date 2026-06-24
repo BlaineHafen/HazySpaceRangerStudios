@@ -487,7 +487,8 @@ setInterval(() => {
   const s = window._antState;
   const el = document.getElementById('celestra-ant');
   if (el) { const r = el.getBoundingClientRect(); s.rect = `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)}`; }
-  _dbg.textContent = `antReady: ${s.ready}\nformed:   ${s.formed}\ntarget:   ${s.target}\nuForm:    ${s.form.toFixed(3)}\ndiv:      ${s.rect}\nscrollY:  ${Math.round(window.scrollY)}`;
+  const cvs = document.getElementById('particle-canvas');
+  _dbg.textContent = `antReady: ${s.ready}\nformed:   ${s.formed}\ntarget:   ${s.target}\nuForm:    ${s.form.toFixed(3)}\ndiv:      ${s.rect}\nscrollY:  ${Math.round(window.scrollY)}\ninnerH:   ${window.innerHeight}\ncvsCSS:   ${cvs ? cvs.clientHeight : '?'}\ncvsAttr:  ${cvs ? cvs.height : '?'}`;
 }, 100);
 
 // === Interactive Particle Background ===
@@ -731,7 +732,7 @@ void main(){
       uDepth: { value: 30.0 },
       // stars are smaller on mobile (they read proportionally larger on a small
       // viewport, so the field needs a finer point size there)
-      uSize: { value: window.innerWidth < 768 ? 2.2 : 4.0 },
+      uSize: { value: window.innerWidth < 768 ? 8.0 : 4.0 }, // DEBUG: mobile boosted
       // how far stars are pushed from the pointer — much smaller on mobile so
       // the movement stays tight to the finger
       uPush: { value: window.innerWidth < 768 ? 9.0 : 20.0 },
