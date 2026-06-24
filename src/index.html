@@ -545,7 +545,7 @@ void main(){
   // Depth range is -100..+100; remap to 0..1 so near=1, far=0.
   float depthFrac = (offset.z + 100.0) / 200.0;
   // Blend out entirely when the ant is assembled so it stays locked in place.
-  displaced.y += uScrollY * depthFrac * 0.06 * (1.0 - f);
+  displaced.y += uScrollY * depthFrac * 0.18 * (1.0 - f);
 
   // Ant target with a faint shimmer so the assembled ant still breathes
   vec3 target=antTarget;
