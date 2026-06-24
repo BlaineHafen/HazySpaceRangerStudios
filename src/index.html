@@ -472,6 +472,24 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 </script>
 
 <script type="module">
+// === ANT DEBUG OVERLAY (remove after diagnosis) ===
+const _dbg = document.createElement('div');
+_dbg.id = '_antdbg';
+Object.assign(_dbg.style, {
+  position:'fixed', bottom:'12px', left:'12px', zIndex:'9999',
+  background:'rgba(0,0,0,0.75)', color:'#0f0', fontFamily:'monospace',
+  fontSize:'11px', padding:'6px 10px', borderRadius:'6px', lineHeight:'1.6',
+  pointerEvents:'none', whiteSpace:'pre'
+});
+document.body.appendChild(_dbg);
+window._antState = { ready:false, formed:false, target:0, form:0, rect:'—' };
+setInterval(() => {
+  const s = window._antState;
+  const el = document.getElementById('celestra-ant');
+  if (el) { const r = el.getBoundingClientRect(); s.rect = `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)}`; }
+  _dbg.textContent = `antReady: ${s.ready}\nformed:   ${s.formed}\ntarget:   ${s.target}\nuForm:    ${s.form.toFixed(3)}\ndiv:      ${s.rect}\nscrollY:  ${Math.round(window.scrollY)}`;
+}, 100);
+
 // === Interactive Particle Background ===
 import * as THREE from 'three';
 (() => {
@@ -757,8 +775,9 @@ void main(){
       for (let k = 0; k < n; k++) isAnt[k] = 1;
       isAntAttr.needsUpdate = true;
       antReady = true;
+      if(window._antState) window._antState.ready = `true (${pts.length}pts)`;
     };
-    img.onerror = () => {};
+    img.onerror = () => { if(window._antState) window._antState.ready = 'IMG_ERROR'; };
     img.src = 'assets/ant-mask.png';
   }
   sampleAnt();
@@ -799,6 +818,7 @@ void main(){
     } else if (!inView && antFormed) {
       antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
     }
+    if(window._antState){ window._antState.formed=antFormed; window._antState.target=formTarget; window._antState.form=material.uniforms.uForm.value; }
     const u = material.uniforms.uForm;
     if (u.value !== formTarget) {
       const t = Math.min((performance.now() - formStart) / ANT_FORM_DUR, 1);
