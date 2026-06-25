@@ -836,9 +836,9 @@ void main(){
     angles[i] = Math.random() * Math.PI * 2;
     // ant particles (first ANT_COUNT) are a touch finer
     sizes[i] = i < ANT_COUNT ? Math.random() * 1.0 + 0.7 : Math.random() * 1.5 + 0.5;
-    // ant stars get a WIDE brightness spread (0.15–1.0) so the constellation
-    // has real value variation — some dim, some bright — and reads as lifelike
-    brightnesses[i] = i < ANT_COUNT ? Math.random() * 0.85 + 0.15 : Math.random() * 0.6 + 0.2;
+    // ant stars keep a wide brightness spread so the constellation reads as lifelike;
+    // scatter/background stars are very dim so portraits pop against them
+    brightnesses[i] = i < ANT_COUNT ? Math.random() * 0.85 + 0.15 : Math.random() * 0.12 + 0.04;
   }
 
   const geom = new THREE.BufferGeometry();
@@ -872,7 +872,7 @@ void main(){
       uScrollY: { value: 0 },
       uTouch: { value: touchTex.texture },
       uResolution: { value: new THREE.Vector2(w, h) },
-      uGlobalBright: { value: 1.0 },
+      uGlobalBright: { value: 0.3 },
     },
     transparent: true,
     depthTest: false,
@@ -965,7 +965,7 @@ void main(){
   //   - also includes medium-luminance pixels (skin tones) that bg-subtraction
   //     might otherwise miss (e.g. faces on gray backgrounds)
   //   - bakes pixel luminance into per-particle brightness for tonal variation
-  const PORTRAIT_COUNT = isMobile ? 3000 : 8000;
+  const PORTRAIT_COUNT = isMobile ? 6000 : 16000;
 
   function createPortrait(photoSrc, anchorId) {
     const PC = PORTRAIT_COUNT;
@@ -995,12 +995,13 @@ void main(){
     ig.attributes.position = geom.attributes.position;
     const tgtAttr = new THREE.InstancedBufferAttribute(tgt, 3);
     const brAttr  = new THREE.InstancedBufferAttribute(br,  1);
+    const szAttr  = new THREE.InstancedBufferAttribute(sz,  1);
     ig.setAttribute('offset',     new THREE.InstancedBufferAttribute(pos,  3));
     ig.setAttribute('antTarget',  tgtAttr);
     ig.setAttribute('isAnt',      new THREE.InstancedBufferAttribute(ian,  1));
     ig.setAttribute('pindex',     new THREE.InstancedBufferAttribute(pidx, 1));
     ig.setAttribute('angle',      new THREE.InstancedBufferAttribute(ang,  1));
-    ig.setAttribute('size',       new THREE.InstancedBufferAttribute(sz,   1));
+    ig.setAttribute('size',       szAttr);
     ig.setAttribute('brightness', brAttr);
 
     const mat = new THREE.ShaderMaterial({
@@ -1009,7 +1010,7 @@ void main(){
       uniforms: {
         uTime:       material.uniforms.uTime,
         uDepth:      { value: 0 },
-        uSize:       { value: isMobile ? 2.8 : 3.2 },
+        uSize:       { value: isMobile ? 2.2 : 2.6 },
         uPush:       { value: 0 },
         uForm:       { value: 0 },
         uScrollY:    { value: 0 },
@@ -1091,10 +1092,19 @@ void main(){
         const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
       }
       pts = pool;
-      // Bake luminance into per-particle brightness (wider range = more face contrast)
+      // Drive both SIZE and BRIGHTNESS from pixel luminance so tonal variation
+      // is doubly encoded — bright photo pixels become large bright stars,
+      // dark pixels become tiny dim stars. Power curve (^0.65) lifts midtones
+      // so mid-tone skin and hair structure stays visible while shadows stay dark.
       const n = Math.min(PC, pool.length);
-      for (let k = 0; k < n; k++) br[k] = 0.15 + pool[k].lum * 0.85;
+      for (let k = 0; k < n; k++) {
+        const lum = pool[k].lum;
+        const enhanced = Math.pow(lum, 0.65);   // lift midtones, keep darks dark
+        br[k] = 0.05 + enhanced * 0.95;          // range ~0.05 – 1.0
+        sz[k] = 0.15 + enhanced * 1.85;          // range ~0.15 – 2.0, bright = larger
+      }
       brAttr.needsUpdate = true;
+      szAttr.needsUpdate = true;
       ready = true;
     };
     img.onerror = () => console.warn(photoSrc + ' failed to load');
@@ -1148,10 +1158,10 @@ void main(){
   function updatePortraits() {
     _portraitFormSum = 0;
     for (const upd of portraitUpdaters) _portraitFormSum += upd();
-    // Dim main scatter stars while portraits are visible so faces pop
+    // Dim main scatter stars further while portraits are visible
     const targetBright = _portraitFormSum > 0.1
-      ? Math.max(0.18, 1.0 - _portraitFormSum * 0.12)
-      : 1.0;
+      ? Math.max(0.06, 0.3 - _portraitFormSum * 0.05)
+      : 0.3;
     const cur = material.uniforms.uGlobalBright.value;
     material.uniforms.uGlobalBright.value += (targetBright - cur) * 0.04;
   }
