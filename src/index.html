@@ -846,11 +846,10 @@ void main(){
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   const scene = new THREE.Scene();
-  const CAM_MARGIN = 200; // extra world-units beyond viewport so edge particles don't clip
   const fovH = window.innerHeight / 2;
   const camera = new THREE.OrthographicCamera(
-    -window.innerWidth / 2 - CAM_MARGIN, window.innerWidth / 2 + CAM_MARGIN,
-    fovH + CAM_MARGIN, -(fovH + CAM_MARGIN), 1, 1000
+    -window.innerWidth / 2, window.innerWidth / 2,
+    fovH, -fovH, 1, 1000
   );
   camera.position.z = 500;
 
@@ -1054,7 +1053,9 @@ void main(){
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight;
       const cy = r.top + r.height * 0.5;
-      const inView = r.height > 0 && cy > 0 && cy < vh;
+      // 180px margin ensures portrait particles (±150px from center) stay
+      // safely inside the viewport frustum and never get hardware-clipped
+      const inView = r.height > 0 && cy > 180 && cy < vh - 180;
 
       if (inView && !formed) {
         formed = true; fFrom = mat.uniforms.uForm.value; fTarget = 1; fStart = performance.now();
@@ -1174,8 +1175,8 @@ void main(){
   window.addEventListener('resize', () => {
     const w2 = window.innerWidth, h2 = window.innerHeight;
     renderer.setSize(w2, h2);
-    camera.left = -w2 / 2 - CAM_MARGIN; camera.right = w2 / 2 + CAM_MARGIN;
-    camera.top = h2 / 2 + CAM_MARGIN; camera.bottom = -(h2 / 2 + CAM_MARGIN);
+    camera.left = -w2 / 2; camera.right = w2 / 2;
+    camera.top = h2 / 2; camera.bottom = -h2 / 2;
     camera.updateProjectionMatrix();
     material.uniforms.uResolution.value.set(w2, h2);
     material.uniforms.uSize.value = w2 < 768 ? 2.2 : 4.0;
