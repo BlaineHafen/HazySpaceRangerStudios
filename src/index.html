@@ -731,6 +731,7 @@ void main(){
   // giving precise edge definition instead of a uniform blob.
   vec4 col = texture2D(uTexture, vec2(pUV.x, 1.0 - pUV.y));
   float grey = max(col.r, max(col.g, col.b));
+  grey = pow(grey, 0.75); // lift midtones: skin/hair at 0.4 → 0.57, black stays 0
 
   float seed = fract(sin(pindex * 12.9898) * 43758.5453);
   float f = isAnt * smoothstep(seed * 0.55, seed * 0.55 + 0.45, uForm);
@@ -759,7 +760,7 @@ void main(){
 
   // Brightness: max ~0.8 when fully formed (was 1.8 — too hot). 20% cooler.
   float twinkle = sin(uTime * 1.5 + pindex * 0.5) * 0.2 + 0.8;
-  vBrightness = grey * twinkle * mix(0.3, 0.8, ft) + t * 0.8;
+  vBrightness = grey * twinkle * mix(0.33, 0.88, ft) + t * 0.8;
 
   gl_PointSize = psize;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
@@ -1160,9 +1161,11 @@ void main(){
     touchTex.update();
     renderer.render(scene, camera);
   }
+  let animPaused = false;
+  document.addEventListener('visibilitychange', () => { animPaused = document.hidden; });
   function animate() {
     requestAnimationFrame(animate);
-    renderFrame();
+    if (!animPaused) renderFrame();
   }
   animate();
 
