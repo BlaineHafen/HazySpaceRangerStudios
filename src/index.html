@@ -849,7 +849,7 @@ void main(){
     sizes[i] = i < ANT_COUNT ? Math.random() * 1.0 + 0.7 : Math.random() * 1.5 + 0.5;
     // ant stars keep a wide brightness spread so the constellation reads as lifelike;
     // scatter/background stars are very dim so portraits pop against them
-    brightnesses[i] = i < ANT_COUNT ? Math.random() * 0.85 + 0.15 : Math.random() * 0.45 + 0.15;
+    brightnesses[i] = i < ANT_COUNT ? Math.random() * 0.85 + 0.15 : Math.random() * 0.55 + 0.35;
   }
 
   const geom = new THREE.BufferGeometry();
@@ -883,7 +883,7 @@ void main(){
       uScrollY: { value: 0 },
       uTouch: { value: touchTex.texture },
       uResolution: { value: new THREE.Vector2(w, h) },
-      uGlobalBright: { value: 0.5 },
+      uGlobalBright: { value: 1.0 },
     },
     transparent: true,
     depthTest: false,
@@ -949,7 +949,9 @@ void main(){
     const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
     const margin = 20;
-    const inView = r.height > 0 && r.top >= -margin && r.bottom <= vh + margin;
+    // Trigger when the centre of the anchor crosses the viewport
+    const cy = r.top + r.height * 0.5;
+    const inView = r.height > 0 && cy > 0 && cy < vh;
     if (inView && !antFormed) {
       antFormed = true; antFormFrom = material.uniforms.uForm.value;
       antFormTarget = 1; antFormStart = performance.now();
@@ -1132,7 +1134,8 @@ void main(){
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight;
       const margin = 20;
-      const inView = r.height > 0 && r.top >= -margin && r.bottom <= vh + margin;
+      const cy = r.top + r.height * 0.5;
+      const inView = r.height > 0 && cy > 0 && cy < vh;
 
       if (inView && !formed) {
         formed = true; fFrom = mat.uniforms.uForm.value; fTarget = 1; fStart = performance.now();
@@ -1177,8 +1180,8 @@ void main(){
     for (const upd of portraitUpdaters) _portraitFormSum += upd();
     // Dim main scatter stars further while portraits are visible
     const targetBright = _portraitFormSum > 0.1
-      ? Math.max(0.08, 0.5 - _portraitFormSum * 0.08)
-      : 0.5;
+      ? Math.max(0.15, 1.0 - _portraitFormSum * 0.17)
+      : 1.0;
     const cur = material.uniforms.uGlobalBright.value;
     material.uniforms.uGlobalBright.value += (targetBright - cur) * 0.04;
   }
