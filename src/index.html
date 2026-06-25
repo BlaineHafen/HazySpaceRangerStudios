@@ -733,6 +733,77 @@ void main(){
   gl_FragColor=vec4(vec3(1.0),alpha);
 }`;
 
+  // --- Portrait Shaders (Bruno Imbrizi technique) ---
+  // Vertex shader samples the SOURCE IMAGE texture at each particle's UV.
+  // The resulting luminance (grey) drives BOTH gl_PointSize AND vBrightness,
+  // so bright photo pixels become large bright stars and dark pixels become
+  // tiny dim ones — the tonal structure of the face is encoded in star scale.
+  const portraitVertexShader = `
+${snoise2D}
+attribute float pindex;
+attribute vec3 offset;
+attribute vec3 antTarget;
+attribute float isAnt;
+attribute float angle;
+attribute vec2 pUV;
+
+uniform float uTime;
+uniform float uSize;
+uniform float uForm;
+uniform sampler2D uTexture;
+uniform sampler2D uTouch;
+uniform vec2 uResolution;
+
+varying float vBrightness;
+
+void main(){
+  // Sample luminance from the source portrait image at this particle's UV.
+  // flipY: canvas v=0 is top → GL bottom, so invert Y.
+  vec4 col = texture2D(uTexture, vec2(pUV.x, 1.0 - pUV.y));
+  float grey = col.r * 0.21 + col.g * 0.71 + col.b * 0.07;
+
+  float seed = fract(sin(pindex * 12.9898) * 43758.5453);
+  float f = isAnt * smoothstep(seed * 0.55, seed * 0.55 + 0.45, uForm);
+  float ft = f * f * (3.0 - 2.0 * f);
+
+  // Assembled target breathes slightly
+  vec3 target = antTarget;
+  target.x += sin(uTime * 0.7 + pindex) * 0.8;
+  target.y += cos(uTime * 0.6 + pindex * 1.2) * 0.8;
+
+  // Arc flight path from off-screen to portrait position
+  vec3 path = mix(offset, target, ft);
+  float arc = sin(f * 3.14159265) * (35.0 + seed * 75.0);
+  path.x += cos(angle) * arc;
+  path.y += sin(angle) * arc;
+  vec3 displaced = path;
+
+  // Touch interaction
+  vec2 touchUV = vec2((displaced.x / uResolution.x) + 0.5,
+                      1.0 - ((displaced.y / uResolution.y) + 0.5));
+  float t = texture2D(uTouch, touchUV).r * (1.0 - f * 0.6);
+  displaced.x += cos(angle) * t * 20.0;
+  displaced.y += sin(angle) * t * 20.0;
+
+  float twinkle = sin(uTime * 1.5 + pindex * 0.5) * 0.3 + 0.7;
+
+  // Grey drives brightness — minimum 0.05 so all particles are faintly visible
+  vBrightness = max(grey, 0.05) * twinkle * mix(0.5, 1.8, ft) + t * 1.2;
+
+  // Grey drives size (Bruno's key technique: bright pixel = large star)
+  gl_PointSize = max(grey, 0.1) * uSize * twinkle * (1.0 + ft * 0.3) * (1.0 + t * 0.3);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+}`;
+
+  const portraitFragmentShader = `
+varying float vBrightness;
+void main(){
+  vec2 uv = gl_PointCoord - 0.5;
+  float d = length(uv);
+  float alpha = smoothstep(0.5, 0.15, d) * vBrightness;
+  gl_FragColor = vec4(vec3(1.0), alpha);
+}`;
+
   // --- Touch Texture ---
   class TouchTexture {
     constructor() {
@@ -970,14 +1041,10 @@ void main(){
   }
 
   // ---- Independent portrait particle systems (Team + Mission) ----
-  // Each portrait is its own Three.js Points object — multiple portraits
-  // can assemble simultaneously because they share no state.
-  // Samples the actual photo directly in JS rather than a pre-processed mask:
-  //   - estimates background luminance from border pixels
-  //   - weights each pixel by how different it is from the background
-  //   - also includes medium-luminance pixels (skin tones) that bg-subtraction
-  //     might otherwise miss (e.g. faces on gray backgrounds)
-  //   - bakes pixel luminance into per-particle brightness for tonal variation
+  // Uses Bruno Imbrizi's technique: source image is passed as uTexture uniform.
+  // The vertex shader samples texture2D(uTexture, pUV) to get luminance, which
+  // drives BOTH gl_PointSize AND vBrightness — bright pixels = large bright stars,
+  // dark pixels = tiny dim ones. No pre-baked brightness attributes needed.
   const PORTRAIT_COUNT = isMobile ? 10000 : 24000;
 
   function createPortrait(photoSrc, anchorId) {
@@ -987,12 +1054,8 @@ void main(){
     const ian  = new Float32Array(PC);
     const pidx = new Float32Array(PC);
     const ang  = new Float32Array(PC);
-    const sz   = new Float32Array(PC);
-    const br   = new Float32Array(PC);
+    const puv  = new Float32Array(PC * 2); // pixel UV in source image
 
-    // Spawn off-screen so dispersed particles are invisible and don't
-    // pollute the background. They fly IN from outside the viewport when
-    // assembling, and back out when dissolving.
     const offR = Math.max(window.innerWidth, window.innerHeight);
     for (let i = 0; i < PC; i++) {
       const offA = Math.random() * Math.PI * 2;
@@ -1005,37 +1068,31 @@ void main(){
       ian[i]  = 1;
       pidx[i] = Math.random() * 9999 + 1000;
       ang[i]  = Math.random() * Math.PI * 2;
-      sz[i]   = Math.random() * 0.8 + 0.6;
-      br[i]   = Math.random() * 0.85 + 0.15;
+      puv[i*2] = 0.5; puv[i*2+1] = 0.5; // neutral UV until image loads
     }
 
     const ig = new THREE.InstancedBufferGeometry();
     ig.index = geom.index;
     ig.attributes.position = geom.attributes.position;
     const tgtAttr = new THREE.InstancedBufferAttribute(tgt, 3);
-    const brAttr  = new THREE.InstancedBufferAttribute(br,  1);
-    const szAttr  = new THREE.InstancedBufferAttribute(sz,  1);
-    ig.setAttribute('offset',     new THREE.InstancedBufferAttribute(pos,  3));
-    ig.setAttribute('antTarget',  tgtAttr);
-    ig.setAttribute('isAnt',      new THREE.InstancedBufferAttribute(ian,  1));
-    ig.setAttribute('pindex',     new THREE.InstancedBufferAttribute(pidx, 1));
-    ig.setAttribute('angle',      new THREE.InstancedBufferAttribute(ang,  1));
-    ig.setAttribute('size',       szAttr);
-    ig.setAttribute('brightness', brAttr);
+    const puvAttr = new THREE.InstancedBufferAttribute(puv, 2);
+    ig.setAttribute('offset',    new THREE.InstancedBufferAttribute(pos,  3));
+    ig.setAttribute('antTarget', tgtAttr);
+    ig.setAttribute('isAnt',     new THREE.InstancedBufferAttribute(ian,  1));
+    ig.setAttribute('pindex',    new THREE.InstancedBufferAttribute(pidx, 1));
+    ig.setAttribute('angle',     new THREE.InstancedBufferAttribute(ang,  1));
+    ig.setAttribute('pUV',       puvAttr);
 
     const mat = new THREE.ShaderMaterial({
-      vertexShader,
-      fragmentShader,
+      vertexShader:   portraitVertexShader,
+      fragmentShader: portraitFragmentShader,
       uniforms: {
         uTime:       material.uniforms.uTime,
-        uDepth:      { value: 0 },
-        uSize:       { value: isMobile ? 2.2 : 2.6 },
-        uPush:       { value: 0 },
+        uSize:       { value: isMobile ? 5.0 : 8.0 },
         uForm:       { value: 0 },
-        uScrollY:    { value: 0 },
+        uTexture:    { value: null },
         uTouch:      material.uniforms.uTouch,
         uResolution: material.uniforms.uResolution,
-        uGlobalBright: { value: 1.0 },
       },
       transparent: true,
       depthTest:   false,
@@ -1045,11 +1102,20 @@ void main(){
     scene.add(new THREE.Points(ig, mat));
 
     const el = document.getElementById(anchorId);
-    let pts = null, ready = false;
+    let pts = null, texLoaded = false, poolReady = false;
     let formed = false, fFrom = 0, fTarget = 0, fStart = 0;
 
-    // Load the actual photo and sample pixels directly.
-    // Use native image resolution (up to 300px wide) for maximum pixel fidelity.
+    // Load image as THREE.Texture for the shader
+    const tex = new THREE.TextureLoader().load(photoSrc,
+      () => { texLoaded = true; },
+      undefined,
+      () => console.warn(photoSrc + ' texture failed')
+    );
+    mat.uniforms.uTexture.value = tex;
+
+    // Also sample pixels via canvas to build the weighted position pool.
+    // JS doesn't need luminance anymore (shader handles that) — just UV positions,
+    // weighted so important areas (eyes, hairline, edges) get more particles.
     const offC = document.createElement('canvas');
     const img = new Image();
     img.onload = () => {
@@ -1061,79 +1127,62 @@ void main(){
       try { oc.drawImage(img, 0, 0, aw, ah); } catch(e) { return; }
       const d = oc.getImageData(0, 0, aw, ah).data;
 
-      // Estimate background luminance from a 5px border band
+      // Estimate background from border band
       const B = 5, bgSamples = [];
       for (let x = 0; x < aw; x++) {
         for (let yb = 0; yb < B; yb++) {
           const i0 = (yb * aw + x) * 4;
           bgSamples.push((d[i0]*0.299 + d[i0+1]*0.587 + d[i0+2]*0.114) / 255);
-          const i1 = ((ah - 1 - yb) * aw + x) * 4;
+          const i1 = ((ah-1-yb) * aw + x) * 4;
           bgSamples.push((d[i1]*0.299 + d[i1+1]*0.587 + d[i1+2]*0.114) / 255);
         }
       }
-      for (let y = B; y < ah - B; y++) {
+      for (let y = B; y < ah-B; y++) {
         for (let xb = 0; xb < B; xb++) {
-          const i0 = (y * aw + xb) * 4;
-          bgSamples.push((d[i0]*0.299 + d[i0+1]*0.587 + d[i0+2]*0.114) / 255);
-          const i1 = (y * aw + (aw - 1 - xb)) * 4;
-          bgSamples.push((d[i1]*0.299 + d[i1+1]*0.587 + d[i1+2]*0.114) / 255);
+          const i0 = (y*aw+xb)*4;
+          bgSamples.push((d[i0]*0.299+d[i0+1]*0.587+d[i0+2]*0.114)/255);
+          const i1 = (y*aw+(aw-1-xb))*4;
+          bgSamples.push((d[i1]*0.299+d[i1+1]*0.587+d[i1+2]*0.114)/255);
         }
       }
-      bgSamples.sort((a, b) => a - b);
-      const bgLum = bgSamples[Math.floor(bgSamples.length * 0.5)];
+      bgSamples.sort((a,b) => a-b);
+      const bgLum = bgSamples[bgSamples.length>>1];
 
-      // Build weighted sample pool.
-      // Each pixel gets a probability score = max of:
-      //   1. bg-subtraction: how different is it from the background?
-      //   2. fill score: is it a mid-range luminance (skin tone / subject tone)?
-      // This handles both clear-bg cases AND zoomed-in portraits where the
-      // bg estimate from borders is unreliable (borders are the person's edge).
+      // Weighted pool: pixels more different from background appear more often
       const pool = [];
       for (let y = 0; y < ah; y++) {
         for (let x = 0; x < aw; x++) {
-          const idx = (y * aw + x) * 4;
-          const r0 = d[idx], g0 = d[idx+1], b0 = d[idx+2];
-          const lum = (r0*0.299 + g0*0.587 + b0*0.114) / 255;
-          if (lum < 0.04) continue; // skip near-black (deep shadow / empty space)
-          const bgDiff = Math.abs(lum - bgLum);
-          // Fill score: non-zero for any pixel in a medium luminance band
-          // so faces/bodies are filled even when they match the bg tone
-          const fillScore = (lum > 0.08 && lum < 0.95) ? 0.25 : 0;
-          const prob = Math.min(Math.max(bgDiff * 4.5, fillScore), 1);
+          const idx = (y*aw+x)*4;
+          const lum = (d[idx]*0.299+d[idx+1]*0.587+d[idx+2]*0.114)/255;
+          if (lum < 0.04) continue;
+          const prob = Math.min(Math.max(Math.abs(lum-bgLum)*4.5,
+                                         (lum>0.08&&lum<0.95)?0.25:0), 1);
           if (prob < 0.05) continue;
           const reps = Math.max(1, Math.round(prob * 12));
-          for (let t = 0; t < reps; t++) pool.push({ u: x / aw, v: y / ah, lum });
+          for (let r = 0; r < reps; r++) pool.push({ u: x/aw, v: y/ah });
         }
       }
-      // Shuffle
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = (Math.random() * (i + 1)) | 0;
+      for (let i = pool.length-1; i > 0; i--) {
+        const j = (Math.random()*(i+1))|0;
         const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
       }
       pts = pool;
-      // Drive both SIZE and BRIGHTNESS from pixel luminance so tonal variation
-      // is doubly encoded — bright photo pixels become large bright stars,
-      // dark pixels become tiny dim stars. Power curve (^0.65) lifts midtones
-      // so mid-tone skin and hair structure stays visible while shadows stay dark.
+
+      // Write pixel UVs into pUV attribute
       const n = Math.min(PC, pool.length);
-      for (let k = 0; k < n; k++) {
-        const lum = pool[k].lum;
-        const enhanced = Math.pow(lum, 0.65);   // lift midtones, keep darks dark
-        br[k] = 0.05 + enhanced * 0.95;          // range ~0.05 – 1.0
-        sz[k] = 0.15 + enhanced * 1.85;          // range ~0.15 – 2.0, bright = larger
-      }
-      brAttr.needsUpdate = true;
-      szAttr.needsUpdate = true;
-      ready = true;
+      for (let k = 0; k < n; k++) { puv[k*2]=pool[k].u; puv[k*2+1]=pool[k].v; }
+      puvAttr.needsUpdate = true;
+      poolReady = true;
     };
-    img.onerror = () => console.warn(photoSrc + ' failed to load');
+    img.onerror = () => console.warn(photoSrc + ' canvas load failed');
     img.src = photoSrc;
 
+    const ready = () => poolReady && texLoaded;
+
     return function update() {
-      if (!ready || !el) return;
+      if (!ready() || !el) return 0;
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight;
-      const margin = 20;
       const cy = r.top + r.height * 0.5;
       const inView = r.height > 0 && cy > 0 && cy < vh;
 
@@ -1156,8 +1205,8 @@ void main(){
         const n = Math.min(PC, pts.length);
         for (let k = 0; k < n; k++) {
           const p = pts[k];
-          tgt[k*3]   = r.left + p.u * r.width  - W / 2;
-          tgt[k*3+1] = H / 2 - (r.top + p.v * r.height);
+          tgt[k*3]   = r.left + p.u * r.width  - W/2;
+          tgt[k*3+1] = H/2 - (r.top + p.v * r.height);
         }
         tgtAttr.needsUpdate = true;
       }
