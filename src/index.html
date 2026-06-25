@@ -957,9 +957,15 @@ void main(){
   // ---- Independent portrait particle systems (Team + Mission) ----
   // Each portrait is its own Three.js Points object — multiple portraits
   // can assemble simultaneously because they share no state.
-  const PORTRAIT_COUNT = isMobile ? 600 : 1500;
+  // Samples the actual photo directly in JS rather than a pre-processed mask:
+  //   - estimates background luminance from border pixels
+  //   - weights each pixel by how different it is from the background
+  //   - also includes medium-luminance pixels (skin tones) that bg-subtraction
+  //     might otherwise miss (e.g. faces on gray backgrounds)
+  //   - bakes pixel luminance into per-particle brightness for tonal variation
+  const PORTRAIT_COUNT = isMobile ? 1500 : 4000;
 
-  function createPortrait(maskSrc, anchorId) {
+  function createPortrait(photoSrc, anchorId) {
     const PC = PORTRAIT_COUNT;
     const pos  = new Float32Array(PC * 3);
     const tgt  = new Float32Array(PC * 3);
@@ -978,7 +984,7 @@ void main(){
       ian[i]  = 1;
       pidx[i] = Math.random() * 9999 + 1000;
       ang[i]  = Math.random() * Math.PI * 2;
-      sz[i]   = Math.random() * 1.0 + 0.7;
+      sz[i]   = Math.random() * 0.8 + 0.6;
       br[i]   = Math.random() * 0.85 + 0.15;
     }
 
@@ -1001,7 +1007,7 @@ void main(){
       uniforms: {
         uTime:       material.uniforms.uTime,
         uDepth:      { value: 0 },
-        uSize:       { value: isMobile ? 3.0 : 5.5 },
+        uSize:       { value: isMobile ? 3.5 : 4.5 },
         uPush:       { value: 0 },
         uForm:       { value: 0 },
         uScrollY:    { value: 0 },
@@ -1019,45 +1025,77 @@ void main(){
     let pts = null, ready = false;
     let formed = false, fFrom = 0, fTarget = 0, fStart = 0;
 
-    // Load mask — alpha encodes sampling probability (soft, not binary).
-    // Weighted pool: high-alpha pixels appear more often so edge features
-    // (eyes, hairline, chin) are denser in the particle cloud.
-    const SZ = 200;
+    // Load the actual photo and sample pixels directly.
+    // Use native image resolution (up to 300px wide) for maximum pixel fidelity.
     const offC = document.createElement('canvas');
     const img = new Image();
     img.onload = () => {
-      const aw = SZ, ah = Math.round(SZ * img.naturalHeight / img.naturalWidth);
+      const aw = Math.min(img.naturalWidth, 300);
+      const ah = Math.round(aw * img.naturalHeight / img.naturalWidth);
       offC.width = aw; offC.height = ah;
       const oc = offC.getContext('2d');
       oc.clearRect(0, 0, aw, ah);
       try { oc.drawImage(img, 0, 0, aw, ah); } catch(e) { return; }
       const d = oc.getImageData(0, 0, aw, ah).data;
+
+      // Estimate background luminance from a 5px border band
+      const B = 5, bgSamples = [];
+      for (let x = 0; x < aw; x++) {
+        for (let yb = 0; yb < B; yb++) {
+          const i0 = (yb * aw + x) * 4;
+          bgSamples.push((d[i0]*0.299 + d[i0+1]*0.587 + d[i0+2]*0.114) / 255);
+          const i1 = ((ah - 1 - yb) * aw + x) * 4;
+          bgSamples.push((d[i1]*0.299 + d[i1+1]*0.587 + d[i1+2]*0.114) / 255);
+        }
+      }
+      for (let y = B; y < ah - B; y++) {
+        for (let xb = 0; xb < B; xb++) {
+          const i0 = (y * aw + xb) * 4;
+          bgSamples.push((d[i0]*0.299 + d[i0+1]*0.587 + d[i0+2]*0.114) / 255);
+          const i1 = (y * aw + (aw - 1 - xb)) * 4;
+          bgSamples.push((d[i1]*0.299 + d[i1+1]*0.587 + d[i1+2]*0.114) / 255);
+        }
+      }
+      bgSamples.sort((a, b) => a - b);
+      const bgLum = bgSamples[Math.floor(bgSamples.length * 0.5)];
+
+      // Build weighted sample pool.
+      // Each pixel gets a probability score = max of:
+      //   1. bg-subtraction: how different is it from the background?
+      //   2. fill score: is it a mid-range luminance (skin tone / subject tone)?
+      // This handles both clear-bg cases AND zoomed-in portraits where the
+      // bg estimate from borders is unreliable (borders are the person's edge).
       const pool = [];
       for (let y = 0; y < ah; y++) {
         for (let x = 0; x < aw; x++) {
           const idx = (y * aw + x) * 4;
-          const a = d[idx + 3];
-          if (a < 20) continue;
-          const lum = (d[idx]*0.299 + d[idx+1]*0.587 + d[idx+2]*0.114) / 255;
-          // Repeat proportional to alpha so denser features win more slots
-          const reps = Math.max(1, Math.round(a / 42));
-          for (let r = 0; r < reps; r++) pool.push({ u: x / aw, v: y / ah, lum });
+          const r0 = d[idx], g0 = d[idx+1], b0 = d[idx+2];
+          const lum = (r0*0.299 + g0*0.587 + b0*0.114) / 255;
+          if (lum < 0.04) continue; // skip near-black (deep shadow / empty space)
+          const bgDiff = Math.abs(lum - bgLum);
+          // Fill score: non-zero for any pixel in a medium luminance band
+          // so faces/bodies are filled even when they match the bg tone
+          const fillScore = (lum > 0.08 && lum < 0.95) ? 0.25 : 0;
+          const prob = Math.min(Math.max(bgDiff * 4.5, fillScore), 1);
+          if (prob < 0.05) continue;
+          const reps = Math.max(1, Math.round(prob * 7));
+          for (let t = 0; t < reps; t++) pool.push({ u: x / aw, v: y / ah, lum });
         }
       }
-      // Shuffle the weighted pool
+      // Shuffle
       for (let i = pool.length - 1; i > 0; i--) {
         const j = (Math.random() * (i + 1)) | 0;
         const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
       }
       pts = pool;
-      // Bake luminance into per-particle brightness so tonal variation is preserved
+      // Bake luminance into per-particle brightness (wider range = more face contrast)
       const n = Math.min(PC, pool.length);
-      for (let k = 0; k < n; k++) br[k] = 0.25 + pool[k].lum * 0.75;
+      for (let k = 0; k < n; k++) br[k] = 0.15 + pool[k].lum * 0.85;
       brAttr.needsUpdate = true;
       ready = true;
     };
-    img.onerror = () => console.warn(maskSrc + ' failed to load');
-    img.src = maskSrc;
+    img.onerror = () => console.warn(photoSrc + ' failed to load');
+    img.src = photoSrc;
 
     return function update() {
       if (!ready || !el) return;
@@ -1094,10 +1132,10 @@ void main(){
   }
 
   const portraitUpdaters = [
-    createPortrait('assets/mask-blaine.png',   'portrait-blaine'),
-    createPortrait('assets/mask-donnovan.png', 'portrait-donnovan'),
-    createPortrait('assets/mask-pete.png',     'portrait-pete'),
-    createPortrait('assets/mask-planet.png',   'portrait-planet'),
+    createPortrait('assets/team-blaine.png',    'portrait-blaine'),
+    createPortrait('assets/team-donnovan.png',  'portrait-donnovan'),
+    createPortrait('assets/team-pete.png',      'portrait-pete'),
+    createPortrait('assets/planet.png',         'portrait-planet'),
   ];
 
   function updatePortraits() {
