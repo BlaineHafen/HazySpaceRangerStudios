@@ -617,7 +617,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 import * as THREE from 'three';
 (() => {
   const isMobile = window.innerWidth < 768;
-  const PARTICLE_COUNT = isMobile ? 2800 : 5600;
+  const PARTICLE_COUNT = isMobile ? 1500 : 3000;
   const TOUCH_SIZE    = isMobile ? 64   : 96;
 
   // --- Simplex 2D noise (inline GLSL) ---
@@ -911,7 +911,7 @@ void main(){
   // The vertex shader samples texture2D(uTexture, pUV) to get luminance, which
   // drives BOTH gl_PointSize AND vBrightness — bright pixels = large bright stars,
   // dark pixels = tiny dim ones. No pre-baked brightness attributes needed.
-  const PORTRAIT_COUNT = isMobile ? 10000 : 24000;
+  const PORTRAIT_COUNT = isMobile ? 5000 : 12000;
 
   function createPortrait(photoSrc, anchorId) {
     const PC = PORTRAIT_COUNT;
@@ -1044,8 +1044,9 @@ void main(){
     img.src = photoSrc;
 
     const ready = () => poolReady && texLoaded;
+    let lastUploadScrollY = -Infinity;
 
-    return function update() {
+    return function update(currentScrollY) {
       if (!ready() || !el) return 0;
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight;
@@ -1054,6 +1055,7 @@ void main(){
 
       if (inView && !formed) {
         formed = true; fFrom = mat.uniforms.uForm.value; fTarget = 1; fStart = performance.now();
+        lastUploadScrollY = -Infinity; // force upload on next frame
       } else if (!inView && formed) {
         formed = false; fFrom = mat.uniforms.uForm.value; fTarget = 0; fStart = performance.now();
       }
@@ -1066,7 +1068,10 @@ void main(){
         u.value = fTarget;
       }
 
-      if ((u.value > 0.01 || fTarget > 0) && pts) {
+      // Only recompute world-space targets when the page has scrolled —
+      // uploading the buffer every frame wastes GPU bandwidth when idle.
+      if ((u.value > 0.01 || fTarget > 0) && pts && currentScrollY !== lastUploadScrollY) {
+        lastUploadScrollY = currentScrollY;
         const W = window.innerWidth, H = window.innerHeight;
         const n = Math.min(PC, pts.length);
         for (let k = 0; k < n; k++) {
@@ -1093,9 +1098,9 @@ void main(){
   // Track how many portraits are actively assembled so we can dim background stars
   let _portraitFormSum = 0;
 
-  function updatePortraits() {
+  function updatePortraits(scrollY) {
     _portraitFormSum = 0;
-    for (const upd of portraitUpdaters) _portraitFormSum += upd();
+    for (const upd of portraitUpdaters) _portraitFormSum += upd(scrollY);
     // Dim main scatter stars further while portraits are visible
     const targetBright = _portraitFormSum > 0.1
       ? Math.max(0.15, 1.0 - _portraitFormSum * 0.17)
@@ -1143,14 +1148,14 @@ void main(){
   let smoothScrollY = 0;
   function renderFrame() {
     const now = performance.now();
-    if (now - lastRender < 13) return;            // cap ~75fps
+    if (now - lastRender < 16) return;            // cap ~60fps
     const dt = Math.min((now - lastRender) / 1000, 0.05);
     lastRender = now;
     material.uniforms.uTime.value += dt;
     // Smooth the raw scroll value so parallax eases rather than snapping.
     smoothScrollY += (window.scrollY - smoothScrollY) * Math.min(dt * 4, 1);
     material.uniforms.uScrollY.value = smoothScrollY;
-    updatePortraits();
+    updatePortraits(window.scrollY);
     touchTex.update();
     renderer.render(scene, camera);
   }
