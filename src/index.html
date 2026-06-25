@@ -253,7 +253,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   top:50%;
   transform:translateY(-50%);
   height:min(520px,60vh);
-  aspect-ratio:738 / 676;   /* width is derived from height */
+  aspect-ratio:1 / 1;   /* width is derived from height */
   width:auto;
   z-index:1;
   pointer-events:none;
@@ -301,7 +301,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .celestra p{font-size:16px}
   /* mobile: the star/particle ant sits below the text, sized to the ant
      CREATURE in the comp (~70% of the viewport, not the full frame), centred */
-  .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(300px,72vw);aspect-ratio:738/676;height:auto;margin-top:32px}
+  .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(300px,72vw);aspect-ratio:1/1;height:auto;margin-top:32px}
   .hero-cta{display:inline-flex}
 }
 </style>
@@ -746,13 +746,15 @@ void main(){
   let antPts = null, antReady = false;
 
   function sampleAnt() {
-    const SZ = 200;
-    const aw = SZ, ah = Math.round(SZ * 676 / 738);   // preserve mask aspect
+    const SZ = 300; // sample at higher res so thin legs survive downscaling
     const off = document.createElement('canvas');
-    off.width = aw; off.height = ah;
-    const octx = off.getContext('2d');
     const img = new Image();
     img.onload = () => {
+      // Derive sample dimensions from the image's own aspect ratio so the
+      // code works regardless of which mask file is in use.
+      const aw = SZ, ah = Math.round(SZ * img.naturalHeight / img.naturalWidth);
+      off.width = aw; off.height = ah;
+      const octx = off.getContext('2d');
       octx.clearRect(0, 0, aw, ah);
       try { octx.drawImage(img, 0, 0, aw, ah); } catch (e) { return; }
       const data = octx.getImageData(0, 0, aw, ah).data;
