@@ -296,23 +296,24 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 }
 .team-grid{
   display:flex;
-  flex-direction:column;
-  gap:100px;
-  align-items:center;
+  flex-direction:row;
+  gap:80px;
+  align-items:flex-start;
+  justify-content:center;
+  flex-wrap:wrap;
 }
 .team-member{
   display:flex;
   flex-direction:column;
   align-items:center;
   gap:20px;
-  width:100%;
-  max-width:500px;
+  width:300px;
 }
-/* photos are replaced by the particle silhouette — keep them hidden */
+/* photos replaced by particle silhouettes */
 .team-member-photo{ display:none }
-/* invisible anchor div: particles assemble into this rect */
+/* invisible anchor div — particles assemble into this screen rect */
 .portrait-anchor{
-  width:380px;height:380px;
+  width:300px;height:300px;
   pointer-events:none;flex-shrink:0;
 }
 .team-member-name{
@@ -397,10 +398,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(300px,72vw);aspect-ratio:1/1;height:auto;margin-top:32px}
   .hero-cta{display:inline-flex}
   /* Team section mobile */
-  .team{padding:80px 20px;gap:60px}
+  .team{padding:80px 20px;gap:40px}
   .team h2{font-size:24px}
-  .team-grid{gap:60px}
-  .team-member{max-width:280px}
+  .team-grid{flex-direction:column;gap:60px;align-items:center}
+  .team-member{width:100%;max-width:280px}
   .portrait-anchor{width:260px;height:260px}
   .team-member-name{font-size:20px}
   .team-member-title{font-size:14px}
@@ -879,31 +880,11 @@ void main(){
   const points = new THREE.Points(instGeom, material);
   scene.add(points);
 
-  // ---- Multi-portrait particle system ----
-  // The first ANT_COUNT particles assemble into silhouettes as the user
-  // scrolls. Each anchor div is a position target; only one is active at a
-  // time. Masks are loaded in parallel; transitions disperse then re-assemble.
+  // ---- Ant system (Project Celestra only) ----
+  const antAnchor = document.getElementById('celestra-ant');
+  let antPts = null, antReady = false;
 
-  const portraitDefs = [
-    { id: 'celestra-ant',      mask: 'assets/ant-mask.png'      },
-    { id: 'portrait-blaine',   mask: 'assets/mask-blaine.png'   },
-    { id: 'portrait-donnovan', mask: 'assets/mask-donnovan.png' },
-    { id: 'portrait-pete',     mask: 'assets/mask-pete.png'     },
-    { id: 'portrait-planet',   mask: 'assets/mask-planet.png'   },
-  ];
-
-  const portraitList = portraitDefs.map(d => ({
-    el:    document.getElementById(d.id),
-    mask:  d.mask,
-    pts:   null,
-    ready: false,
-  }));
-
-  // Mark ANT_COUNT particles as silhouette-capable (done once, shared by all)
-  for (let k = 0; k < ANT_COUNT; k++) isAnt[k] = 1;
-  isAntAttr.needsUpdate = true;
-
-  portraitList.forEach(p => {
+  function sampleAnt() {
     const SZ = 300;
     const off = document.createElement('canvas');
     const img = new Image();
@@ -922,24 +903,18 @@ void main(){
         const j = (Math.random() * (i + 1)) | 0;
         const t = pts[i]; pts[i] = pts[j]; pts[j] = t;
       }
-      p.pts = pts;
-      p.ready = true;
+      antPts = pts;
+      const n = Math.min(ANT_COUNT, pts.length);
+      for (let k = 0; k < n; k++) isAnt[k] = 1;
+      isAntAttr.needsUpdate = true;
+      antReady = true;
     };
-    img.onerror = () => console.warn(p.mask + ' failed to load');
-    img.src = p.mask;
-  });
-
-  // Portrait state machine
-  const ANT_FORM_DUR = 2200;
-  const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  let activePortrait = null;
-  let pendingPortrait = null;
-  let formFrom = 0, formTarget = 0, formStart = 0;
-  // Legacy refs kept for updateAntTargets
-  let antPts = null, antReady = false;
+    img.onerror = () => console.warn('ant-mask.png failed to load');
+    img.src = 'assets/ant-mask.png';
+  }
+  sampleAnt();
 
   function updateAntTargets(r) {
-    if (!antPts) return;
     const W = window.innerWidth, H = window.innerHeight;
     const n = Math.min(ANT_COUNT, antPts.length);
     for (let k = 0; k < n; k++) {
@@ -952,60 +927,181 @@ void main(){
     antAttr.needsUpdate = true;
   }
 
-  function activatePortrait(p) {
-    activePortrait = p;
-    antPts = p.pts;
-    antReady = true;
-    formFrom = material.uniforms.uForm.value;
-    formTarget = 1;
-    formStart = performance.now();
-  }
+  const ANT_FORM_DUR = 2200;
+  const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  let antFormed = false, antFormFrom = 0, antFormTarget = 0, antFormStart = 0;
 
   function updateAnt() {
+    if (!antReady) return;
+    const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
     const margin = 20;
-    let inViewPortrait = null;
-    for (const p of portraitList) {
-      if (!p.ready || !p.el) continue;
-      const r = p.el.getBoundingClientRect();
-      if (r.height > 0 && r.top >= -margin && r.bottom <= vh + margin) {
-        inViewPortrait = p;
-        break;
-      }
+    const inView = r.height > 0 && r.top >= -margin && r.bottom <= vh + margin;
+    if (inView && !antFormed) {
+      antFormed = true; antFormFrom = material.uniforms.uForm.value;
+      antFormTarget = 1; antFormStart = performance.now();
+    } else if (!inView && antFormed) {
+      antFormed = false; antFormFrom = material.uniforms.uForm.value;
+      antFormTarget = 0; antFormStart = performance.now();
     }
-
     const u = material.uniforms.uForm;
-
-    if (inViewPortrait && inViewPortrait !== activePortrait) {
-      // Different portrait entered view — queue it, start dispersing
-      pendingPortrait = inViewPortrait;
-      if (u.value > 0.02) {
-        formFrom = u.value; formTarget = 0; formStart = performance.now();
-      }
-    } else if (!inViewPortrait && activePortrait && formTarget === 1) {
-      // Active portrait scrolled out — disperse
-      formFrom = u.value; formTarget = 0; formStart = performance.now();
-      activePortrait = null;
-    }
-
-    // Animate uForm
-    if (Math.abs(u.value - formTarget) > 0.001) {
-      const t = Math.min((performance.now() - formStart) / ANT_FORM_DUR, 1);
-      u.value = formFrom + (formTarget - formFrom) * easeIO(t);
+    if (Math.abs(u.value - antFormTarget) > 0.001) {
+      const t = Math.min((performance.now() - antFormStart) / ANT_FORM_DUR, 1);
+      u.value = antFormFrom + (antFormTarget - antFormFrom) * easeIO(t);
     } else {
-      u.value = formTarget;
+      u.value = antFormTarget;
+    }
+    if (u.value > 0.01 || antFormTarget > 0) updateAntTargets(r);
+  }
+
+  // ---- Independent portrait particle systems (Team + Mission) ----
+  // Each portrait is its own Three.js Points object — multiple portraits
+  // can assemble simultaneously because they share no state.
+  const PORTRAIT_COUNT = isMobile ? 600 : 1500;
+
+  function createPortrait(maskSrc, anchorId) {
+    const PC = PORTRAIT_COUNT;
+    const pos  = new Float32Array(PC * 3);
+    const tgt  = new Float32Array(PC * 3);
+    const ian  = new Float32Array(PC);
+    const pidx = new Float32Array(PC);
+    const ang  = new Float32Array(PC);
+    const sz   = new Float32Array(PC);
+    const br   = new Float32Array(PC);
+
+    for (let i = 0; i < PC; i++) {
+      pos[i*3]   = (Math.random() - 0.5) * window.innerWidth  * 1.5;
+      pos[i*3+1] = (Math.random() - 0.5) * window.innerHeight * 1.5;
+      pos[i*3+2] = 0;
+      tgt[i*3]   = pos[i*3];
+      tgt[i*3+1] = pos[i*3+1];
+      ian[i]  = 1;
+      pidx[i] = Math.random() * 9999 + 1000;
+      ang[i]  = Math.random() * Math.PI * 2;
+      sz[i]   = Math.random() * 1.0 + 0.7;
+      br[i]   = Math.random() * 0.85 + 0.15;
     }
 
-    // When nearly dispersed, switch to the pending portrait
-    if (pendingPortrait && u.value < 0.05) {
-      activatePortrait(pendingPortrait);
-      pendingPortrait = null;
-    }
+    const ig = new THREE.InstancedBufferGeometry();
+    ig.index = geom.index;
+    ig.attributes.position = geom.attributes.position;
+    const tgtAttr = new THREE.InstancedBufferAttribute(tgt, 3);
+    const brAttr  = new THREE.InstancedBufferAttribute(br,  1);
+    ig.setAttribute('offset',     new THREE.InstancedBufferAttribute(pos,  3));
+    ig.setAttribute('antTarget',  tgtAttr);
+    ig.setAttribute('isAnt',      new THREE.InstancedBufferAttribute(ian,  1));
+    ig.setAttribute('pindex',     new THREE.InstancedBufferAttribute(pidx, 1));
+    ig.setAttribute('angle',      new THREE.InstancedBufferAttribute(ang,  1));
+    ig.setAttribute('size',       new THREE.InstancedBufferAttribute(sz,   1));
+    ig.setAttribute('brightness', brAttr);
 
-    // Keep active portrait's targets updated as page scrolls
-    if (activePortrait && (u.value > 0.01 || formTarget > 0)) {
-      updateAntTargets(activePortrait.el.getBoundingClientRect());
-    }
+    const mat = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        uTime:       material.uniforms.uTime,
+        uDepth:      { value: 0 },
+        uSize:       { value: isMobile ? 3.0 : 5.5 },
+        uPush:       { value: 0 },
+        uForm:       { value: 0 },
+        uScrollY:    { value: 0 },
+        uTouch:      material.uniforms.uTouch,
+        uResolution: material.uniforms.uResolution,
+      },
+      transparent: true,
+      depthTest:   false,
+      blending:    THREE.AdditiveBlending,
+    });
+
+    scene.add(new THREE.Points(ig, mat));
+
+    const el = document.getElementById(anchorId);
+    let pts = null, ready = false;
+    let formed = false, fFrom = 0, fTarget = 0, fStart = 0;
+
+    // Load mask — alpha encodes sampling probability (soft, not binary).
+    // Weighted pool: high-alpha pixels appear more often so edge features
+    // (eyes, hairline, chin) are denser in the particle cloud.
+    const SZ = 200;
+    const offC = document.createElement('canvas');
+    const img = new Image();
+    img.onload = () => {
+      const aw = SZ, ah = Math.round(SZ * img.naturalHeight / img.naturalWidth);
+      offC.width = aw; offC.height = ah;
+      const oc = offC.getContext('2d');
+      oc.clearRect(0, 0, aw, ah);
+      try { oc.drawImage(img, 0, 0, aw, ah); } catch(e) { return; }
+      const d = oc.getImageData(0, 0, aw, ah).data;
+      const pool = [];
+      for (let y = 0; y < ah; y++) {
+        for (let x = 0; x < aw; x++) {
+          const idx = (y * aw + x) * 4;
+          const a = d[idx + 3];
+          if (a < 20) continue;
+          const lum = (d[idx]*0.299 + d[idx+1]*0.587 + d[idx+2]*0.114) / 255;
+          // Repeat proportional to alpha so denser features win more slots
+          const reps = Math.max(1, Math.round(a / 42));
+          for (let r = 0; r < reps; r++) pool.push({ u: x / aw, v: y / ah, lum });
+        }
+      }
+      // Shuffle the weighted pool
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+      }
+      pts = pool;
+      // Bake luminance into per-particle brightness so tonal variation is preserved
+      const n = Math.min(PC, pool.length);
+      for (let k = 0; k < n; k++) br[k] = 0.25 + pool[k].lum * 0.75;
+      brAttr.needsUpdate = true;
+      ready = true;
+    };
+    img.onerror = () => console.warn(maskSrc + ' failed to load');
+    img.src = maskSrc;
+
+    return function update() {
+      if (!ready || !el) return;
+      const r = el.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const margin = 20;
+      const inView = r.height > 0 && r.top >= -margin && r.bottom <= vh + margin;
+
+      if (inView && !formed) {
+        formed = true; fFrom = mat.uniforms.uForm.value; fTarget = 1; fStart = performance.now();
+      } else if (!inView && formed) {
+        formed = false; fFrom = mat.uniforms.uForm.value; fTarget = 0; fStart = performance.now();
+      }
+
+      const u = mat.uniforms.uForm;
+      if (Math.abs(u.value - fTarget) > 0.001) {
+        const t = Math.min((performance.now() - fStart) / ANT_FORM_DUR, 1);
+        u.value = fFrom + (fTarget - fFrom) * easeIO(t);
+      } else {
+        u.value = fTarget;
+      }
+
+      if ((u.value > 0.01 || fTarget > 0) && pts) {
+        const W = window.innerWidth, H = window.innerHeight;
+        const n = Math.min(PC, pts.length);
+        for (let k = 0; k < n; k++) {
+          const p = pts[k];
+          tgt[k*3]   = r.left + p.u * r.width  - W / 2;
+          tgt[k*3+1] = H / 2 - (r.top + p.v * r.height);
+        }
+        tgtAttr.needsUpdate = true;
+      }
+    };
+  }
+
+  const portraitUpdaters = [
+    createPortrait('assets/mask-blaine.png',   'portrait-blaine'),
+    createPortrait('assets/mask-donnovan.png', 'portrait-donnovan'),
+    createPortrait('assets/mask-pete.png',     'portrait-pete'),
+    createPortrait('assets/mask-planet.png',   'portrait-planet'),
+  ];
+
+  function updatePortraits() {
+    for (const upd of portraitUpdaters) upd();
   }
 
   // Mouse/touch events â€” map screen coords to 0-1 UV for the touch texture
@@ -1055,6 +1151,7 @@ void main(){
     smoothScrollY += (window.scrollY - smoothScrollY) * Math.min(dt * 4, 1);
     material.uniforms.uScrollY.value = smoothScrollY;
     updateAnt();
+    updatePortraits();
     touchTex.update();
     renderer.render(scene, camera);
   }
