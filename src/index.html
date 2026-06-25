@@ -56,9 +56,8 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .nav-links a:hover{color:#fff}
 .nav-links a:hover::after{transform:scaleX(1)}
 .nav-links a[href="#games"]::after{background:#360084}
-.nav-links a[href="#shop"]::after{background:#8F0178}
-.nav-links a[href="#about"]::after{background:#DF1A58}
-.nav-links a[href="#crew"]::after{background:#F5B345}
+.nav-links a[href="#about"]::after{background:#8F0178}
+.nav-links a[href="#crew"]::after{background:#DF1A58}
 
 /* CTA button */
 .nav-cta{font-family:'Anta',sans-serif;font-size:20px;padding:12px;background:none;color:#a7a7a7;border:1px solid #a7a7a7;text-decoration:none;transition:color .3s, border-color .3s;cursor:pointer;position:relative;overflow:hidden}
@@ -275,6 +274,100 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .hero-cta.visible{opacity:1}
 .hero-cta:hover,.hero-cta:active{color:#fff;border-color:#fff}
 
+/* ===================== THE TEAM SECTION ===================== */
+.team{
+  position:relative;
+  z-index:2;
+  width:100%;
+  background:transparent;
+  padding:120px 80px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:80px;
+  overflow:hidden;
+}
+.team h2{
+  font-family:'Anta',sans-serif;
+  font-size:48px;
+  font-weight:400;
+  color:#fff;
+  text-align:center;
+}
+.team-grid{
+  display:flex;
+  flex-direction:column;
+  gap:100px;
+  align-items:center;
+}
+.team-member{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:20px;
+  width:100%;
+  max-width:500px;
+}
+/* photos are replaced by the particle silhouette — keep them hidden */
+.team-member-photo{ display:none }
+/* invisible anchor div: particles assemble into this rect */
+.portrait-anchor{
+  width:380px;height:380px;
+  pointer-events:none;flex-shrink:0;
+}
+.team-member-name{
+  font-family:'Anta',sans-serif;
+  font-size:32px;
+  font-weight:400;
+  color:#fff;
+  text-align:center;
+  white-space:nowrap;
+}
+.team-member-title{
+  font-family:'Montserrat',sans-serif;
+  font-size:24px;
+  font-weight:400;
+  color:#fff;
+  text-align:center;
+  line-height:1.35;
+}
+
+/* ===================== OUR MISSION SECTION ===================== */
+.mission{
+  position:relative;
+  z-index:2;
+  width:100%;
+  background:transparent;
+  padding:0 80px 120px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:40px;
+  overflow:hidden;
+}
+.mission h2{
+  font-family:'Anta',sans-serif;
+  font-size:48px;
+  font-weight:400;
+  color:#fff;
+  text-align:center;
+}
+.mission p{
+  font-family:'Montserrat',sans-serif;
+  font-size:24px;
+  font-weight:400;
+  color:#fff;
+  text-align:center;
+  max-width:800px;
+  line-height:1.4;
+}
+/* planet photo replaced by particle silhouette */
+.mission-planet{ display:none }
+.planet-anchor{
+  width:700px;height:247px;
+  pointer-events:none;flex-shrink:0;
+}
+
 /* ===================== RESPONSIVE ===================== */
 @media(max-width:768px){
   .nav{padding:16px}
@@ -303,6 +396,19 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
      CREATURE in the comp (~70% of the viewport, not the full frame), centred */
   .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(300px,72vw);aspect-ratio:1/1;height:auto;margin-top:32px}
   .hero-cta{display:inline-flex}
+  /* Team section mobile */
+  .team{padding:80px 20px;gap:60px}
+  .team h2{font-size:24px}
+  .team-grid{gap:60px}
+  .team-member{max-width:280px}
+  .portrait-anchor{width:260px;height:260px}
+  .team-member-name{font-size:20px}
+  .team-member-title{font-size:14px}
+  /* Mission section mobile */
+  .mission{padding:0 20px 80px;gap:20px}
+  .mission h2{font-size:24px}
+  .mission p{font-size:14px}
+  .planet-anchor{width:280px;height:99px}
 }
 </style>
 </head>
@@ -321,7 +427,6 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   </div>
   <ul class="nav-links">
     <li><a href="#games">Games</a></li>
-    <li><a href="#shop">Shop</a></li>
     <li><a href="#about">About</a></li>
     <li><a href="#crew">Crew</a></li>
   </ul>
@@ -342,7 +447,6 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   <!-- Mobile dropdown menu -->
   <div class="nav-menu" id="nav-menu">
     <a href="#games">Games</a>
-    <a href="#shop">Shop</a>
     <a href="#about">About</a>
     <a href="#crew">Crew</a>
     <a href="#" class="nav-menu-cta">Join The Crew</a>
@@ -384,6 +488,42 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   </div>
   <!-- the starfield assembles into the ant here (desktop + mobile) -->
   <div class="celestra-ant" id="celestra-ant"></div>
+</section>
+
+<!-- About transition divider -->
+<section class="transition" id="about-transition">
+  <span class="transition-line"></span>
+  <h3>About</h3>
+  <span class="transition-line"></span>
+</section>
+
+<!-- The Team Section -->
+<section class="team" id="about">
+  <h2>The Team</h2>
+  <div class="team-grid">
+    <div class="team-member">
+      <div class="portrait-anchor" id="portrait-blaine"></div>
+      <div class="team-member-name">Blaine Hafen</div>
+      <div class="team-member-title">Flight Director, Game Designer, &amp; Honorary Astronaut</div>
+    </div>
+    <div class="team-member">
+      <div class="portrait-anchor" id="portrait-donnovan"></div>
+      <div class="team-member-name">Donnovan Mount</div>
+      <div class="team-member-title">Lore Master, Audio Producer, &amp; Awarded Magician</div>
+    </div>
+    <div class="team-member">
+      <div class="portrait-anchor" id="portrait-pete"></div>
+      <div class="team-member-name">Pete Ziegel</div>
+      <div class="team-member-title">Creative Lead, Visual Producer, &amp; Certified Rockstar</div>
+    </div>
+  </div>
+</section>
+
+<!-- Our Mission Section -->
+<section class="mission" id="mission">
+  <h2>Our Mission</h2>
+  <p>We're a Chicago-based tabletop game studio on a mission to build worlds worth exploring. Every game we make is a voyage into the unknown — strange galaxies, fierce crews, and stories that reach far beyond the event horizon.</p>
+  <div class="planet-anchor" id="portrait-planet"></div>
 </section>
 
 <script>
@@ -739,82 +879,133 @@ void main(){
   const points = new THREE.Points(instGeom, material);
   scene.add(points);
 
-  // ---- Project Celestra ant: a segment of the starfield assembles into the
-  // ant silhouette when its section scrolls into view (and disperses when it
-  // leaves). Targets follow the section's anchor as the page scrolls. ----
-  const antAnchor = document.getElementById('celestra-ant');
-  let antPts = null, antReady = false;
+  // ---- Multi-portrait particle system ----
+  // The first ANT_COUNT particles assemble into silhouettes as the user
+  // scrolls. Each anchor div is a position target; only one is active at a
+  // time. Masks are loaded in parallel; transitions disperse then re-assemble.
 
-  function sampleAnt() {
-    const SZ = 300; // sample at higher res so thin legs survive downscaling
+  const portraitDefs = [
+    { id: 'celestra-ant',      mask: 'assets/ant-mask.png'      },
+    { id: 'portrait-blaine',   mask: 'assets/mask-blaine.png'   },
+    { id: 'portrait-donnovan', mask: 'assets/mask-donnovan.png' },
+    { id: 'portrait-pete',     mask: 'assets/mask-pete.png'     },
+    { id: 'portrait-planet',   mask: 'assets/mask-planet.png'   },
+  ];
+
+  const portraitList = portraitDefs.map(d => ({
+    el:    document.getElementById(d.id),
+    mask:  d.mask,
+    pts:   null,
+    ready: false,
+  }));
+
+  // Mark ANT_COUNT particles as silhouette-capable (done once, shared by all)
+  for (let k = 0; k < ANT_COUNT; k++) isAnt[k] = 1;
+  isAntAttr.needsUpdate = true;
+
+  portraitList.forEach(p => {
+    const SZ = 300;
     const off = document.createElement('canvas');
     const img = new Image();
     img.onload = () => {
-      // Derive sample dimensions from the image's own aspect ratio so the
-      // code works regardless of which mask file is in use.
       const aw = SZ, ah = Math.round(SZ * img.naturalHeight / img.naturalWidth);
       off.width = aw; off.height = ah;
       const octx = off.getContext('2d');
       octx.clearRect(0, 0, aw, ah);
-      try { octx.drawImage(img, 0, 0, aw, ah); } catch (e) { return; }
+      try { octx.drawImage(img, 0, 0, aw, ah); } catch(e) { return; }
       const data = octx.getImageData(0, 0, aw, ah).data;
       const pts = [];
       for (let y = 0; y < ah; y++)
         for (let x = 0; x < aw; x++)
           if (data[(y * aw + x) * 4 + 3] > 60) pts.push({ u: x / aw, v: y / ah });
-      for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = pts[i]; pts[i] = pts[j]; pts[j] = t; }
-      antPts = pts;
-      const n = Math.min(ANT_COUNT, pts.length);
-      for (let k = 0; k < n; k++) isAnt[k] = 1;
-      isAntAttr.needsUpdate = true;
-      antReady = true;
+      for (let i = pts.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        const t = pts[i]; pts[i] = pts[j]; pts[j] = t;
+      }
+      p.pts = pts;
+      p.ready = true;
     };
-    img.onerror = () => console.warn('ant-mask.png failed to load');
-    img.src = 'assets/ant-mask.png';
-  }
-  sampleAnt();
+    img.onerror = () => console.warn(p.mask + ' failed to load');
+    img.src = p.mask;
+  });
+
+  // Portrait state machine
+  const ANT_FORM_DUR = 2200;
+  const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  let activePortrait = null;
+  let pendingPortrait = null;
+  let formFrom = 0, formTarget = 0, formStart = 0;
+  // Legacy refs kept for updateAntTargets
+  let antPts = null, antReady = false;
 
   function updateAntTargets(r) {
+    if (!antPts) return;
     const W = window.innerWidth, H = window.innerHeight;
     const n = Math.min(ANT_COUNT, antPts.length);
     for (let k = 0; k < n; k++) {
       const p = antPts[k];
-      const sx = r.left + p.u * r.width;     // screen px
+      const sx = r.left + p.u * r.width;
       const sy = r.top + p.v * r.height;
-      antTargets[k * 3] = sx - W / 2;        // → world (centre origin, y up)
+      antTargets[k * 3]     = sx - W / 2;
       antTargets[k * 3 + 1] = H / 2 - sy;
     }
     antAttr.needsUpdate = true;
   }
 
-  // The ant assembly is a ONE-SHOT, time-based animation (like the stripes):
-  // crossing a scroll point triggers it and it plays on its own (uForm 0→1),
-  // holds, and only reverses (1→0) when you scroll back up past the trigger.
-  // It is NOT scrubbed by scroll position. While formed, the targets still
-  // follow the anchor so the ant stays attached to the scrolling section.
-  const ANT_FORM_DUR = 2200;
-  const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  let antFormed = false, formFrom = 0, formTarget = 0, formStart = 0;
+  function activatePortrait(p) {
+    activePortrait = p;
+    antPts = p.pts;
+    antReady = true;
+    formFrom = material.uniforms.uForm.value;
+    formTarget = 1;
+    formStart = performance.now();
+  }
 
   function updateAnt() {
-    if (!antReady) return;
-    const r = antAnchor.getBoundingClientRect();
     const vh = window.innerHeight;
-    // Trigger: ant div is fully (or nearly fully) within the viewport so that
-    // all particles — including leg tips at V≈0.97 — map to on-screen coords.
-    const margin = 20; // px tolerance to start assembly just before fully in view
-    const inView = r.height > 0 && r.top >= -margin && r.bottom <= vh + margin;
-    if (inView && !antFormed) {
-      antFormed = true; formFrom = material.uniforms.uForm.value; formTarget = 1; formStart = performance.now();
-    } else if (!inView && antFormed) {
-      antFormed = false; formFrom = material.uniforms.uForm.value; formTarget = 0; formStart = performance.now();
+    const margin = 20;
+    let inViewPortrait = null;
+    for (const p of portraitList) {
+      if (!p.ready || !p.el) continue;
+      const r = p.el.getBoundingClientRect();
+      if (r.height > 0 && r.top >= -margin && r.bottom <= vh + margin) {
+        inViewPortrait = p;
+        break;
+      }
     }
+
     const u = material.uniforms.uForm;
-    if (u.value !== formTarget) {
+
+    if (inViewPortrait && inViewPortrait !== activePortrait) {
+      // Different portrait entered view — queue it, start dispersing
+      pendingPortrait = inViewPortrait;
+      if (u.value > 0.02) {
+        formFrom = u.value; formTarget = 0; formStart = performance.now();
+      }
+    } else if (!inViewPortrait && activePortrait && formTarget === 1) {
+      // Active portrait scrolled out — disperse
+      formFrom = u.value; formTarget = 0; formStart = performance.now();
+      activePortrait = null;
+    }
+
+    // Animate uForm
+    if (Math.abs(u.value - formTarget) > 0.001) {
       const t = Math.min((performance.now() - formStart) / ANT_FORM_DUR, 1);
       u.value = formFrom + (formTarget - formFrom) * easeIO(t);
+    } else {
+      u.value = formTarget;
     }
-    if (u.value > 0.01 || formTarget > 0) updateAntTargets(r);
+
+    // When nearly dispersed, switch to the pending portrait
+    if (pendingPortrait && u.value < 0.05) {
+      activatePortrait(pendingPortrait);
+      pendingPortrait = null;
+    }
+
+    // Keep active portrait's targets updated as page scrolls
+    if (activePortrait && (u.value > 0.01 || formTarget > 0)) {
+      updateAntTargets(activePortrait.el.getBoundingClientRect());
+    }
   }
 
   // Mouse/touch events â€” map screen coords to 0-1 UV for the touch texture
