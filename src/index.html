@@ -216,24 +216,22 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   position:relative;
   z-index:2;
   width:100%;
-  /* at least a full viewport tall so the centred ant can always be scrolled
-     into view — it's the last section, so a shorter section can't be reached
-     on tall screens */
   min-height:100vh;
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   justify-content:center;
   align-items:flex-start;
+  gap:10px;
   padding:120px 80px;
-  background:transparent;   /* lets the particle ant show through behind it */
+  background:transparent;
 }
-.celestra-text{position:relative;z-index:2;max-width:520px}
+.celestra-text{position:relative;z-index:2;max-width:435px}
 .celestra h2{
   font-family:'Anta',sans-serif;
   font-size:48px;
   font-weight:400;
   color:#fff;
-  margin-bottom:24px;
+  margin-bottom:10px;
 }
 .celestra p{
   font-family:'Montserrat',sans-serif;
@@ -243,17 +241,13 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   color:#fff;
   max-width:435px;
 }
-/* invisible anchor — marks where the particle ant assembles (right side).
-   Sized by HEIGHT (capped to the viewport) and width derived from the aspect
-   ratio, so the whole ant — legs included — always fits on screen. */
+/* Particle anchor — the ant assembles here. In the flex row on desktop it
+   sits to the right of the text column at the exact Figma dimensions. */
 .celestra-ant{
-  position:absolute;
-  right:6%;
-  top:50%;
-  transform:translateY(-50%);
-  height:min(520px,60vh);
-  aspect-ratio:1 / 1;   /* width is derived from height */
-  width:auto;
+  position:relative;
+  flex-shrink:0;
+  width:798px;
+  height:766px;
   z-index:1;
   pointer-events:none;
 }
@@ -390,7 +384,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .transition-line{height:130px}
   /* extra bottom space so the ant's legs sit well clear of the iOS Safari
      bottom toolbar / home indicator that overlays the bottom of the page */
-  .celestra{padding:80px 20px 180px;min-height:0}
+  .celestra{flex-direction:column;align-items:flex-start;padding:80px 20px 180px;min-height:0}
   .celestra h2{font-size:28px}
   .celestra p{font-size:16px}
   /* mobile: the star/particle ant sits below the text, sized to the ant
