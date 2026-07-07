@@ -612,7 +612,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 import * as THREE from 'three';
 (() => {
   const isMobile = window.innerWidth < 768;
-  const PARTICLE_COUNT = isMobile ? 1500 : 3000;
+  const PARTICLE_COUNT = isMobile ? 1000 : 3000;
   const TOUCH_SIZE    = isMobile ? 64   : 96;
 
   // --- Simplex 2D noise (inline GLSL) ---
@@ -844,7 +844,15 @@ void main(){
 
   // --- Init ---
   const canvas = document.getElementById('particle-canvas');
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'high-performance' });
+  // A truly opaque drawing buffer lets the compositor skip per-frame alpha
+  // blending of the full-screen canvas — a major win on mobile GPUs. THREE
+  // r119+ always requests alpha:true internally, so the context must be
+  // created by hand to get real opacity. Clear color matches the body bg
+  // (#050505) so the result is pixel-identical to the old transparent canvas.
+  const ctxAttribs = { alpha: false, antialias: false, powerPreference: 'high-performance' };
+  const glCtx = canvas.getContext('webgl2', ctxAttribs) || canvas.getContext('webgl', ctxAttribs);
+  const renderer = new THREE.WebGLRenderer({ canvas, context: glCtx });
+  renderer.setClearColor(0x050505, 1);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.0 : 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -916,7 +924,7 @@ void main(){
   // The vertex shader samples texture2D(uTexture, pUV) to get luminance, which
   // drives BOTH gl_PointSize AND vBrightness — bright pixels = large bright stars,
   // dark pixels = tiny dim ones. No pre-baked brightness attributes needed.
-  const PORTRAIT_COUNT = isMobile ? 3200 : 8000;
+  const PORTRAIT_COUNT = isMobile ? 2400 : 8000;
 
   function createPortrait(photoSrc, anchorId) {
     const PC = PORTRAIT_COUNT;
@@ -1102,11 +1110,11 @@ void main(){
   // Ant uses the same texture-sampled portrait system as the team photos —
   // same particle count, same shader, same brightness encoding, same feel.
   const portraitUpdaters = [
-    createPortrait('assets/ant-mask.png?v=2',       'celestra-ant'),
-    createPortrait('assets/team-blaine.png?v=2',    'portrait-blaine'),
-    createPortrait('assets/team-donnovan.png?v=2',  'portrait-donnovan'),
-    createPortrait('assets/team-pete.png?v=2',      'portrait-pete'),
-    createPortrait('assets/planet.png?v=2',         'portrait-planet'),
+    createPortrait('assets/ant-mask.png?v=3',       'celestra-ant'),
+    createPortrait('assets/team-blaine.png?v=3',    'portrait-blaine'),
+    createPortrait('assets/team-donnovan.png?v=3',  'portrait-donnovan'),
+    createPortrait('assets/team-pete.png?v=3',      'portrait-pete'),
+    createPortrait('assets/planet.png?v=3',         'portrait-planet'),
   ];
 
   // Track how many portraits are actively assembled so we can dim background stars
@@ -1160,9 +1168,12 @@ void main(){
   // throttle de-dupes the two sources so we never double-render a frame.
   let lastRender = performance.now();
   let smoothScrollY = 0;
+  // Mobile GPUs can't sustain 60fps on this scene alongside page scrolling —
+  // a steady ~45fps feels smoother than a stuttering 60.
+  const MIN_FRAME_MS = isMobile ? 22 : 16;
   function renderFrame() {
     const now = performance.now();
-    if (now - lastRender < 16) return;            // cap ~60fps
+    if (now - lastRender < MIN_FRAME_MS) return;
     const dt = Math.min((now - lastRender) / 1000, 0.05);
     lastRender = now;
     material.uniforms.uTime.value += dt;
@@ -1442,10 +1453,13 @@ void main(){
   const MIN_INTERVAL = 2500;
   const MAX_INTERVAL = 7000;
 
+  // Clamp DPR hard — thin white streaks don't need 3x retina resolution, and a
+  // full-res canvas on a modern phone means clearing ~12MB of pixels per frame.
+  const SDPR = Math.min(window.devicePixelRatio || 1, window.innerWidth < 768 ? 1.25 : 1.5);
   function resize() {
-    canvas.width = window.innerWidth * window.devicePixelRatio;
-    canvas.height = window.innerHeight * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    canvas.width = window.innerWidth * SDPR;
+    canvas.height = window.innerHeight * SDPR;
+    ctx.scale(SDPR, SDPR);
   }
   resize();
   window.addEventListener('resize', resize);
@@ -1488,12 +1502,28 @@ void main(){
       decay: Math.random() * 0.3 + 0.45,
       width: Math.random() * 0.8 + 0.6,
     });
+    startLoop();
     setTimeout(spawn, MIN_INTERVAL + Math.random() * (MAX_INTERVAL - MIN_INTERVAL));
   }
   setTimeout(spawn, 2000);
 
+  // The loop only runs while streaks are alive. Stars spawn every 2.5-7s and
+  // live ~2s, so most of the time this canvas costs nothing at all — before,
+  // it cleared and composited a full-screen canvas every frame around the clock.
   let prev = performance.now();
+  let looping = false;
+  function startLoop() {
+    if (looping) return;
+    looping = true;
+    prev = performance.now();
+    requestAnimationFrame(animate);
+  }
   function animate(now) {
+    if (stars.length === 0) {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      looping = false;
+      return;
+    }
     requestAnimationFrame(animate);
     const dt = (now - prev) / 1000;
     prev = now;
@@ -1542,7 +1572,6 @@ void main(){
       ctx.fill();
     }
   }
-  requestAnimationFrame(animate);
 })();
 </script>
 </body>
