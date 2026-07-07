@@ -720,6 +720,7 @@ attribute vec2 pUV;
 uniform float uTime;
 uniform float uSize;
 uniform float uForm;
+uniform float uBright;
 uniform sampler2D uTexture;
 uniform sampler2D uTouch;
 uniform vec2 uResolution;
@@ -760,8 +761,10 @@ void main(){
   psize += t * uSize * 0.5;
 
   // Brightness: max ~0.8 when fully formed (was 1.8 — too hot). 20% cooler.
+  // uBright lifts the whole image on mobile, where smaller particles at 1x
+  // pixel ratio read dimmer than the same scene on desktop.
   float twinkle = sin(uTime * 1.5 + pindex * 0.5) * 0.2 + 0.8;
-  vBrightness = grey * twinkle * mix(0.33, 0.88, ft) + t * 0.8;
+  vBrightness = (grey * twinkle * mix(0.33, 0.88, ft) + t * 0.8) * uBright;
 
   gl_PointSize = psize;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
@@ -967,8 +970,9 @@ void main(){
       fragmentShader: portraitFragmentShader,
       uniforms: {
         uTime:       material.uniforms.uTime,
-        uSize:       { value: isMobile ? 1.25 : 1.7 },
+        uSize:       { value: isMobile ? 1.35 : 1.7 },
         uForm:       { value: 0 },
+        uBright:     { value: isMobile ? 1.3 : 1.0 },
         uTexture:    { value: null },
         uTouch:      material.uniforms.uTouch,
         uResolution: material.uniforms.uResolution,
@@ -1090,10 +1094,14 @@ void main(){
       // Cull the whole mesh once fully dissolved — no draw call, no vertex work
       mesh.visible = fTarget > 0 || u.value > 0.004;
 
-      // Only recompute world-space targets when the page has scrolled —
-      // uploading the buffer every frame wastes GPU bandwidth when idle.
-      if ((u.value > 0.01 || fTarget > 0) && pts && currentScrollY !== lastUploadScrollY) {
-        lastUploadScrollY = currentScrollY;
+      // Only recompute world-space targets when the page has scrolled or the
+      // viewport changed size (mobile URL bar collapse alters innerHeight
+      // mid-scroll, which moves both the anchor rect and the world math —
+      // without this, particles hold stale positions and appear to drift
+      // against the surrounding content).
+      const uploadKey = currentScrollY + window.innerHeight * 1e7;
+      if ((u.value > 0.01 || fTarget > 0) && pts && uploadKey !== lastUploadScrollY) {
+        lastUploadScrollY = uploadKey;
         const W = window.innerWidth, H = window.innerHeight;
         const n = Math.min(PC, pts.length);
         for (let k = 0; k < n; k++) {
@@ -1110,11 +1118,11 @@ void main(){
   // Ant uses the same texture-sampled portrait system as the team photos —
   // same particle count, same shader, same brightness encoding, same feel.
   const portraitUpdaters = [
-    createPortrait('assets/ant-mask.png?v=3',       'celestra-ant'),
-    createPortrait('assets/team-blaine.png?v=3',    'portrait-blaine'),
-    createPortrait('assets/team-donnovan.png?v=3',  'portrait-donnovan'),
-    createPortrait('assets/team-pete.png?v=3',      'portrait-pete'),
-    createPortrait('assets/planet.png?v=3',         'portrait-planet'),
+    createPortrait('assets/ant-mask.png?v=4',       'celestra-ant'),
+    createPortrait('assets/team-blaine.png?v=4',    'portrait-blaine'),
+    createPortrait('assets/team-donnovan.png?v=4',  'portrait-donnovan'),
+    createPortrait('assets/team-pete.png?v=4',      'portrait-pete'),
+    createPortrait('assets/planet.png?v=4',         'portrait-planet'),
   ];
 
   // Track how many portraits are actively assembled so we can dim background stars
@@ -1168,9 +1176,10 @@ void main(){
   // throttle de-dupes the two sources so we never double-render a frame.
   let lastRender = performance.now();
   let smoothScrollY = 0;
-  // Mobile GPUs can't sustain 60fps on this scene alongside page scrolling —
-  // a steady ~45fps feels smoother than a stuttering 60.
-  const MIN_FRAME_MS = isMobile ? 22 : 16;
+  // Must render at display rate: the compositor scrolls the page at 60Hz, so
+  // any lower particle frame rate makes portrait images visibly judder against
+  // the smoothly-moving content around them.
+  const MIN_FRAME_MS = 16;
   function renderFrame() {
     const now = performance.now();
     if (now - lastRender < MIN_FRAME_MS) return;
