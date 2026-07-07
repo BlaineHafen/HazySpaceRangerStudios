@@ -659,6 +659,7 @@ uniform sampler2D uTouch;
 uniform vec2 uResolution;
 
 varying float vBrightness;
+varying float vGlow;
 
 void main(){
   vec3 displaced = offset;
@@ -680,7 +681,11 @@ void main(){
   displaced.y += sin(angle) * t * uPush;
 
   float twinkle = sin(uTime*1.5 + pindex*0.5) * 0.3 + 0.7;
-  vBrightness = brightness * twinkle + t * 1.4;
+  vBrightness = brightness * twinkle;
+  // Touch glow rides on its own varying so the portrait-section dimming
+  // (uGlobalBright) can't crush it — stars glow under the finger even
+  // while the background field is dimmed.
+  vGlow = t * 1.5;
 
   gl_PointSize = size * uSize * (1.0 + t * 0.35);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
@@ -689,11 +694,12 @@ void main(){
   // --- Fragment Shader ---
   const fragmentShader = `
 varying float vBrightness;
+varying float vGlow;
 uniform float uGlobalBright;
 void main(){
   vec2 uv=gl_PointCoord-0.5;
   float d=length(uv);
-  float alpha=smoothstep(0.5,0.15,d)*vBrightness*uGlobalBright;
+  float alpha=smoothstep(0.5,0.15,d)*(vBrightness*uGlobalBright+vGlow);
   gl_FragColor=vec4(vec3(1.0),alpha);
 }`;
 
@@ -766,7 +772,9 @@ varying float vBrightness;
 void main(){
   vec2 uv = gl_PointCoord - 0.5;
   float d = length(uv);
-  float alpha = smoothstep(0.5, 0.15, d) * vBrightness;
+  // Tighter falloff than the background stars: portrait dots need crisp
+  // edges so adjacent particles don't blur together and wash out detail.
+  float alpha = smoothstep(0.42, 0.18, d) * vBrightness;
   gl_FragColor = vec4(vec3(1.0), alpha);
 }`;
 
@@ -778,7 +786,7 @@ void main(){
       this.last = {};          // per-pointer last position, keyed by id (mouse / finger)
       // radius of the glow/displacement splat as a fraction of the screen —
       // much tighter on mobile so the effect stays focused under the finger
-      this.radiusFactor = window.innerWidth < 768 ? 0.03 : 0.045;
+      this.radiusFactor = window.innerWidth < 768 ? 0.055 : 0.045;
       this.canvas = document.createElement('canvas');
       this.canvas.width = this.canvas.height = this.size;
       this.ctx = this.canvas.getContext('2d');
@@ -836,7 +844,7 @@ void main(){
 
   // --- Init ---
   const canvas = document.getElementById('particle-canvas');
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.0 : 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -908,7 +916,7 @@ void main(){
   // The vertex shader samples texture2D(uTexture, pUV) to get luminance, which
   // drives BOTH gl_PointSize AND vBrightness — bright pixels = large bright stars,
   // dark pixels = tiny dim ones. No pre-baked brightness attributes needed.
-  const PORTRAIT_COUNT = isMobile ? 2500 : 6000;
+  const PORTRAIT_COUNT = isMobile ? 3200 : 8000;
 
   function createPortrait(photoSrc, anchorId) {
     const PC = PORTRAIT_COUNT;
@@ -951,7 +959,7 @@ void main(){
       fragmentShader: portraitFragmentShader,
       uniforms: {
         uTime:       material.uniforms.uTime,
-        uSize:       { value: isMobile ? 1.5 : 2.0 },
+        uSize:       { value: isMobile ? 1.25 : 1.7 },
         uForm:       { value: 0 },
         uTexture:    { value: null },
         uTouch:      material.uniforms.uTouch,
@@ -962,7 +970,11 @@ void main(){
       blending:    THREE.AdditiveBlending,
     });
 
-    scene.add(new THREE.Points(ig, mat));
+    const mesh = new THREE.Points(ig, mat);
+    // Hidden until the portrait actually starts forming — a dissolved portrait
+    // otherwise still costs a draw call + full vertex pass every frame.
+    mesh.visible = false;
+    scene.add(mesh);
 
     const el = document.getElementById(anchorId);
     let pts = null, texLoaded = false, poolReady = false;
@@ -1066,6 +1078,9 @@ void main(){
       } else {
         u.value = fTarget;
       }
+
+      // Cull the whole mesh once fully dissolved — no draw call, no vertex work
+      mesh.visible = fTarget > 0 || u.value > 0.004;
 
       // Only recompute world-space targets when the page has scrolled —
       // uploading the buffer every frame wastes GPU bandwidth when idle.
@@ -1176,7 +1191,7 @@ void main(){
     material.uniforms.uResolution.value.set(w2, h2);
     material.uniforms.uSize.value = w2 < 768 ? 2.2 : 4.0;
     material.uniforms.uPush.value = w2 < 768 ? 9.0 : 20.0;
-    touchTex.radiusFactor = w2 < 768 ? 0.03 : 0.045;
+    touchTex.radiusFactor = w2 < 768 ? 0.055 : 0.045;
   });
 })();
 </script>
@@ -1254,12 +1269,13 @@ void main(){
 
   function buildGeometry() {
     const cssW = window.innerWidth;
-    // measure the document height with the canvas collapsed so it doesn't
-    // inflate the page, then size the canvas to span the whole document
-    canvas.style.height = '0px';
-    const cssH = Math.max(document.documentElement.scrollHeight, window.innerHeight);
+    canvas.style.height = '0px';   // collapse while measuring so it can't inflate the page
     const hero = document.querySelector('.hero');
     const heroBottomCss = hero ? (hero.offsetTop + hero.offsetHeight) : window.innerHeight;
+    // The stripes end at the hero/marquee bottom, so the canvas only needs to
+    // reach that far — sizing it to the full document wastes tens of MB of
+    // canvas memory and makes every clearRect touch the whole page height.
+    const cssH = Math.max(heroBottomCss + 4, window.innerHeight);
     W = Math.round(cssW * DPR);
     VH = Math.round(window.innerHeight * DPR);
     H = Math.round(cssH * DPR);
