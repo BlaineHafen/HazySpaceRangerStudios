@@ -21,7 +21,13 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 /* ===================== PARTICLE CANVAS ===================== */
 #particle-canvas,
 #shooting-stars{
-  position:fixed;inset:0;z-index:0;
+  position:fixed;top:0;left:0;width:100%;
+  /* 100lvh (large viewport) keeps the canvas a FIXED size while the mobile
+     URL bar shows/hides. inset:0 tracked the dynamic viewport, which
+     continuously stretched the WebGL buffer during scroll — the particle
+     images visibly bounced up and down against the page content. */
+  height:100vh;height:100lvh;
+  z-index:0;
   pointer-events:none;
   opacity:0;
   transition:opacity 2s ease;
@@ -857,14 +863,17 @@ void main(){
   const renderer = new THREE.WebGLRenderer({ canvas, context: glCtx });
   renderer.setClearColor(0x050505, 1);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.0 : 1.5));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  // ALL world math uses the canvas's own CSS size, not window.innerHeight.
+  // The canvas is 100lvh so it never resizes during mobile URL-bar transitions;
+  // innerHeight changes constantly during scroll and was the jitter source.
+  // setSize(..., false) preserves the CSS height instead of stamping px styles.
+  let CW = canvas.clientWidth  || window.innerWidth;
+  let CH = canvas.clientHeight || window.innerHeight;
+  renderer.setSize(CW, CH, false);
 
   const scene = new THREE.Scene();
-  const fovH = window.innerHeight / 2;
-  const camera = new THREE.OrthographicCamera(
-    -window.innerWidth / 2, window.innerWidth / 2,
-    fovH, -fovH, 1, 1000
-  );
+  const camera = new THREE.OrthographicCamera(-CW / 2, CW / 2, CH / 2, -CH / 2, 1, 1000);
   camera.position.z = 500;
 
   const touchTex = new TouchTexture();
@@ -876,10 +885,9 @@ void main(){
   const sizes        = new Float32Array(PARTICLE_COUNT);
   const brightnesses = new Float32Array(PARTICLE_COUNT);
 
-  const w = window.innerWidth, h = window.innerHeight;
   for (let i = 0; i < PARTICLE_COUNT; i++) {
-    positions[i*3]   = (Math.random() - 0.5) * w * 1.2;
-    positions[i*3+1] = (Math.random() - 0.5) * h * 1.2;
+    positions[i*3]   = (Math.random() - 0.5) * CW * 1.2;
+    positions[i*3+1] = (Math.random() - 0.5) * CH * 1.2;
     positions[i*3+2] = (Math.random() - 0.5) * 200;
     pindices[i]      = i;
     angles[i]        = Math.random() * Math.PI * 2;
@@ -908,7 +916,7 @@ void main(){
       uPush:       { value: window.innerWidth < 768 ? 9.0 : 20.0 },
       uScrollY:    { value: 0 },
       uTouch:      { value: touchTex.texture },
-      uResolution: { value: new THREE.Vector2(w, h) },
+      uResolution: { value: new THREE.Vector2(CW, CH) },
       uGlobalBright: { value: 1.0 },
     },
     transparent: true,
@@ -938,7 +946,7 @@ void main(){
     const ang  = new Float32Array(PC);
     const puv  = new Float32Array(PC * 2); // pixel UV in source image
 
-    const offR = Math.max(window.innerWidth, window.innerHeight);
+    const offR = Math.max(CW, CH);
     for (let i = 0; i < PC; i++) {
       const offA = Math.random() * Math.PI * 2;
       const offD = offR * (0.7 + Math.random() * 0.6);
@@ -1102,12 +1110,14 @@ void main(){
       const uploadKey = currentScrollY + window.innerHeight * 1e7;
       if ((u.value > 0.01 || fTarget > 0) && pts && uploadKey !== lastUploadScrollY) {
         lastUploadScrollY = uploadKey;
-        const W = window.innerWidth, H = window.innerHeight;
+        // World is sized by the canvas (100lvh, stable), and rect coords are
+        // viewport-relative which equals canvas-relative since the fixed
+        // canvas top is glued to the viewport top.
         const n = Math.min(PC, pts.length);
         for (let k = 0; k < n; k++) {
           const p = pts[k];
-          tgt[k*3]   = r.left + p.u * r.width  - W/2;
-          tgt[k*3+1] = H/2 - (r.top + p.v * r.height);
+          tgt[k*3]   = r.left + p.u * r.width  - CW/2;
+          tgt[k*3+1] = CH/2 - (r.top + p.v * r.height);
         }
         tgtAttr.needsUpdate = true;
       }
@@ -1141,9 +1151,11 @@ void main(){
 
   // Mouse/touch events â€” map screen coords to 0-1 UV for the touch texture
   function addPoint(clientX, clientY, id) {
+    // Normalize against the canvas size (not innerHeight) so touch positions
+    // stay aligned with the shader's uResolution-based UV mapping.
     touchTex.addTouch({
-      x: clientX / window.innerWidth,
-      y: clientY / window.innerHeight,
+      x: clientX / CW,
+      y: clientY / CH,
       id
     });
   }
@@ -1201,17 +1213,22 @@ void main(){
   }
   animate();
 
-  // Resize
+  // Resize — reads the canvas's own size. During mobile URL-bar transitions
+  // the 100lvh canvas doesn't change size, so this becomes a no-op and the
+  // scene stays rock-solid; it only does real work on orientation change or
+  // desktop window resizing.
   window.addEventListener('resize', () => {
-    const w2 = window.innerWidth, h2 = window.innerHeight;
-    renderer.setSize(w2, h2);
+    const w2 = canvas.clientWidth, h2 = canvas.clientHeight;
+    if (w2 === CW && h2 === CH) return;
+    CW = w2; CH = h2;
+    renderer.setSize(w2, h2, false);
     camera.left = -w2 / 2; camera.right = w2 / 2;
     camera.top = h2 / 2; camera.bottom = -h2 / 2;
     camera.updateProjectionMatrix();
     material.uniforms.uResolution.value.set(w2, h2);
-    material.uniforms.uSize.value = w2 < 768 ? 2.2 : 4.0;
-    material.uniforms.uPush.value = w2 < 768 ? 9.0 : 20.0;
-    touchTex.radiusFactor = w2 < 768 ? 0.055 : 0.045;
+    material.uniforms.uSize.value = window.innerWidth < 768 ? 2.2 : 4.0;
+    material.uniforms.uPush.value = window.innerWidth < 768 ? 9.0 : 20.0;
+    touchTex.radiusFactor = window.innerWidth < 768 ? 0.055 : 0.045;
   });
 })();
 </script>
@@ -1465,16 +1482,23 @@ void main(){
   // Clamp DPR hard — thin white streaks don't need 3x retina resolution, and a
   // full-res canvas on a modern phone means clearing ~12MB of pixels per frame.
   const SDPR = Math.min(window.devicePixelRatio || 1, window.innerWidth < 768 ? 1.25 : 1.5);
+  // Buffer sized from the canvas's own 100lvh box (stable during mobile
+  // URL-bar transitions), not the ever-changing window.innerHeight.
+  let SW = 0, SH = 0;
   function resize() {
-    canvas.width = window.innerWidth * SDPR;
-    canvas.height = window.innerHeight * SDPR;
+    const w = canvas.clientWidth || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    if (w === SW && h === SH) return;
+    SW = w; SH = h;
+    canvas.width = SW * SDPR;
+    canvas.height = SH * SDPR;
     ctx.scale(SDPR, SDPR);
   }
   resize();
   window.addEventListener('resize', resize);
 
   function spawn() {
-    const w = window.innerWidth, h = window.innerHeight;
+    const w = SW, h = SH;
     const edge = Math.floor(Math.random() * 4);
     let x, y, angle;
 
@@ -1529,7 +1553,7 @@ void main(){
   }
   function animate(now) {
     if (stars.length === 0) {
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.clearRect(0, 0, SW, SH);
       looping = false;
       return;
     }
@@ -1537,7 +1561,7 @@ void main(){
     const dt = (now - prev) / 1000;
     prev = now;
 
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.clearRect(0, 0, SW, SH);
 
     for (let i = stars.length - 1; i >= 0; i--) {
       const s = stars[i];
@@ -1545,7 +1569,7 @@ void main(){
       s.y += s.vy * dt;
       s.life -= s.decay * dt;
 
-      if (s.life <= 0 || s.x > window.innerWidth + 100 || s.y > window.innerHeight + 100) {
+      if (s.life <= 0 || s.x > SW + 100 || s.y > SH + 100) {
         stars.splice(i, 1);
         continue;
       }
