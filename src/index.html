@@ -858,7 +858,10 @@ void main(){
   // r119+ always requests alpha:true internally, so the context must be
   // created by hand to get real opacity. Clear color matches the body bg
   // (#050505) so the result is pixel-identical to the old transparent canvas.
-  const ctxAttribs = { alpha: false, antialias: false, powerPreference: 'high-performance' };
+  // desynchronized lets Chrome/Android present the canvas outside the normal
+  // compositor queue — up to a frame less latency between render and display,
+  // which tightens how closely the particles track scrolling content.
+  const ctxAttribs = { alpha: false, antialias: false, powerPreference: 'high-performance', desynchronized: true };
   const glCtx = canvas.getContext('webgl2', ctxAttribs) || canvas.getContext('webgl', ctxAttribs);
   const renderer = new THREE.WebGLRenderer({ canvas, context: glCtx });
   renderer.setClearColor(0x050505, 1);
@@ -1184,17 +1187,25 @@ void main(){
   // updating while the page is coasting.
   window.addEventListener('scroll', renderFrame, { passive: true });
 
-  // Single render path, drivable by BOTH rAF and touch events. A min-interval
-  // throttle de-dupes the two sources so we never double-render a frame.
+  // rAF is the PRIMARY render driver: it runs at the end of the frame with the
+  // scroll position the compositor is about to paint, so particles and page
+  // content land in the same frame. Event-driven renders (scroll/touch) fire
+  // EARLY in the frame with a stale position — if they render first, the
+  // throttle used to block the fresher rAF render, leaving the particle images
+  // consistently one frame behind the content during scroll (the mobile lag).
+  // Events now only drive rendering when rAF itself has stalled (iOS Safari
+  // pauses rAF during momentum scroll).
   let lastRender = performance.now();
+  let lastRaf = 0;
   let smoothScrollY = 0;
-  // Must render at display rate: the compositor scrolls the page at 60Hz, so
-  // any lower particle frame rate makes portrait images visibly judder against
-  // the smoothly-moving content around them.
-  const MIN_FRAME_MS = 16;
-  function renderFrame() {
+  function renderFrame(fromRaf) {
     const now = performance.now();
-    if (now - lastRender < MIN_FRAME_MS) return;
+    if (!fromRaf) {
+      if (now - lastRaf < 40) return;        // rAF is alive — let it drive
+      if (now - lastRender < 16) return;     // rAF stalled — throttled fallback
+    } else if (now - lastRender < 4) {
+      return;                                // dedupe same-frame double render
+    }
     const dt = Math.min((now - lastRender) / 1000, 0.05);
     lastRender = now;
     material.uniforms.uTime.value += dt;
@@ -1209,7 +1220,8 @@ void main(){
   document.addEventListener('visibilitychange', () => { animPaused = document.hidden; });
   function animate() {
     requestAnimationFrame(animate);
-    if (!animPaused) renderFrame();
+    lastRaf = performance.now();
+    if (!animPaused) renderFrame(true);
   }
   animate();
 
