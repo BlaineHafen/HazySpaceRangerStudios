@@ -466,9 +466,11 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     <li><a href="#crew">Crew</a></li>
   </ul>
   <a href="#" class="nav-cta">
-    <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0L48 46H0V0Z" fill="#360084"/></svg></div>
-    <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H48L96 46H48L0 0Z" fill="#8F0178"/></svg></div>
-    <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H96L144 46H96L48 0Z" fill="#DF1A58"/></svg></div>
+    <!-- each shape overlaps its right neighbor by 1 viewBox unit so the shared
+         diagonal edges can't antialias into hairline seams -->
+    <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H1L49 46H0V0Z" fill="#360084"/></svg></div>
+    <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H49L97 46H48L0 0Z" fill="#8F0178"/></svg></div>
+    <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H97L145 46H96L48 0Z" fill="#DF1A58"/></svg></div>
     <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
     <span>Join The Crew</span>
   </a>
@@ -1496,7 +1498,12 @@ void main(){
   }
 
   function buildGeometry() {
-    const cssW = window.innerWidth;
+    // documentElement.clientWidth EXCLUDES the scrollbar; window.innerWidth
+    // includes it. The canvas is styled width:100% (scrollbar excluded), so
+    // sizing the buffer from innerWidth squeezed the drawing horizontally
+    // AND cut the diagonal stripe arms ~15px before the window edge — a
+    // visible hard clip at the top-right corners of the stripes.
+    const cssW = document.documentElement.clientWidth || window.innerWidth;
     canvas.style.height = '0px';   // collapse while measuring so it can't inflate the page
     const hero = document.querySelector('.hero');
     const heroBottomCss = hero ? (hero.offsetTop + hero.offsetHeight) : window.innerHeight;
