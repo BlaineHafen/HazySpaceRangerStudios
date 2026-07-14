@@ -783,7 +783,9 @@ void main(){
 
   float seed = fract(sin(pindex * 12.9898) * 43758.5453);
   float f = isAnt * smoothstep(seed * 0.55, seed * 0.55 + 0.45, uForm);
-  float ft = f * f * (3.0 - 2.0 * f);
+  // Quintic ease (zero acceleration at both ends): departures and landings
+  // are noticeably softer than the old cubic smoothstep.
+  float ft = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
 
   vec3 target = antTarget;
   target.x += sin(uTime * 0.7 + pindex) * 0.8;
@@ -811,6 +813,9 @@ void main(){
   // multiplied by per-pixel luminance so dark pixels stay truly tiny).
   float psize = (snoise(vec2(uTime * 0.3, pindex * 0.01)) + 2.0) * grey * uSize;
   psize += t * uSize * 1.0;   // touched particles also swell for a sparkle pop
+  // In-flight particles stay small and swell as they land — the swarm reads
+  // as drifting stardust rather than streaking full-size points.
+  psize *= mix(0.35, 1.0, ft);
 
   // Brightness: max ~0.8 when fully formed (was 1.8 — too hot). 20% cooler.
   // uBright lifts the whole image on mobile, where smaller particles at 1x
@@ -1039,7 +1044,9 @@ void main(){
   const points = new THREE.Points(instGeom, material);
   scene.add(points);
 
-  const ANT_FORM_DUR = 2200;
+  // Asymmetric timing: formation is slow and stately; dissolve is quicker so
+  // it never drags behind the user scrolling away.
+  const FORM_DUR = 2600, DISS_DUR = 1500;
   const easeIO = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
 
   // ---- Independent portrait particle systems (Team + Mission) ----
@@ -1058,14 +1065,14 @@ void main(){
     const ang  = new Float32Array(PC);
     const puv  = new Float32Array(PC * 2); // pixel UV in source image
 
-    // Spawn ring sits BEYOND the portrait canvas's half-diagonal, so parked
-    // particles are hardware-clipped and can never appear as star-clumps in
-    // the viewport (the canvas is document-anchored — the viewport can sweep
-    // across any point inside it while scrolling).
+    // Spawn ring: parked particles carry zero brightness (vBrightness ramps
+    // from 0 with formation progress), so the ring can sit CLOSE — shorter
+    // flights mean slower, silkier motion for the same duration instead of
+    // particles streaking in from off-screen.
     const offR = Math.hypot(CW / 2, Math.max(P2H, window.innerHeight * 2) / 2);
     for (let i = 0; i < PC; i++) {
       const offA = Math.random() * Math.PI * 2;
-      const offD = offR * (1.1 + Math.random() * 0.5);
+      const offD = offR * (0.45 + Math.random() * 0.35);
       pos[i*3]   = Math.cos(offA) * offD;
       pos[i*3+1] = Math.sin(offA) * offD;
       pos[i*3+2] = 0;
@@ -1228,7 +1235,8 @@ void main(){
 
       const u = mat.uniforms.uForm;
       if (Math.abs(u.value - fTarget) > 0.001) {
-        const t = Math.min((performance.now() - fStart) / ANT_FORM_DUR, 1);
+        const dur = fTarget === 1 ? FORM_DUR : DISS_DUR;
+        const t = Math.min((performance.now() - fStart) / dur, 1);
         u.value = fFrom + (fTarget - fFrom) * easeIO(t);
       } else {
         u.value = fTarget;
