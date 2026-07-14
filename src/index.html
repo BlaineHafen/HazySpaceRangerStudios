@@ -790,14 +790,17 @@ void main(){
   // current offset from the scroll position.
   vec2 touchUV = vec2((displaced.x / uResolution.x) + 0.5,
                       (uCanvasH * 0.5 - displaced.y - uViewOff) / uViewH);
-  float t = texture2D(uTouch, touchUV).r * (1.0 - f * 0.6);
-  displaced.x += cos(angle) * t * 20.0;
-  displaced.y += sin(angle) * t * 20.0;
+  // Formed images react STRONGLY to touch (the interactive-particles
+  // signature): particles under the finger scatter and brighten, then
+  // spring back as the trail fades.
+  float t = texture2D(uTouch, touchUV).r * (1.0 - f * 0.25);
+  displaced.x += cos(angle) * t * 32.0;
+  displaced.y += sin(angle) * t * 32.0;
 
   // Organic size breathing via snoise (Bruno's approach: noise shifts 1–3 range,
   // multiplied by per-pixel luminance so dark pixels stay truly tiny).
   float psize = (snoise(vec2(uTime * 0.3, pindex * 0.01)) + 2.0) * grey * uSize;
-  psize += t * uSize * 0.5;
+  psize += t * uSize * 1.0;   // touched particles also swell for a sparkle pop
 
   // Brightness: max ~0.8 when fully formed (was 1.8 — too hot). 20% cooler.
   // uBright lifts the whole image on mobile, where smaller particles at 1x
@@ -806,7 +809,7 @@ void main(){
   // Brightness scales with each particle's own formation progress: parked
   // ring particles are fully dark (no visible clumps when the viewport sweeps
   // over them) and fade in as they fly to their target.
-  vBrightness = (grey * twinkle * 0.88 * ft + t * 0.8 * ft) * uBright;
+  vBrightness = (grey * twinkle * 0.88 * ft + t * 1.3 * ft) * uBright;
 
   gl_PointSize = psize;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
@@ -842,18 +845,27 @@ void main(){
     addTouch(pt) {
       const id = pt.id == null ? 'mouse' : pt.id;
       const isTouch = id !== 'mouse';
+      const scale = isTouch ? 2.2 : 1.0;
       // speed-based intensity measured against THIS pointer's previous spot,
       // so multiple fingers/thumbs don't interfere with each other
       const prev = this.last[id];
       let force = 0.5;         // baseline so a stationary tap still glows
       if (prev) {
         const dx = pt.x - prev.x, dy = pt.y - prev.y;
-        force = Math.min(Math.max(Math.sqrt(dx * dx + dy * dy) * 10, 0.4), 1);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        force = Math.min(Math.max(dist * 10, 0.4), 1);
+        // Fast swipes travel many pixels between touch events; a splat per
+        // event renders as separated beads. Interpolate intermediate splats
+        // along the segment so the streak is continuous under a fast finger.
+        const step = this.radiusFactor * 0.6;
+        const nSeg = Math.min(Math.floor(dist / step), 10);
+        for (let s = 1; s <= nSeg; s++) {
+          const f = s / (nSeg + 1);
+          this.trail.push({ x: prev.x + dx * f, y: prev.y + dy * f, age: 0, force, scale });
+        }
       }
       this.last[id] = { x: pt.x, y: pt.y };
-      // touch points glow stronger than the mouse (fingertips are bigger and
-      // mobile only gets a glimpse between scroll repaints)
-      this.trail.push({ x: pt.x, y: pt.y, age: 0, force, scale: isTouch ? 2.2 : 1.0 });
+      this.trail.push({ x: pt.x, y: pt.y, age: 0, force, scale });
     }
     endTouch(id) { delete this.last[id == null ? 'mouse' : id]; }
     update() {
@@ -866,7 +878,9 @@ void main(){
       } else {
         this._idleFrames = 0;
       }
-      this.ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      // Slower fade on mobile: a swipe leaves a comet trail that lingers a
+      // beat longer, making the interaction readable even during scrolling.
+      this.ctx.fillStyle = window.innerWidth < 768 ? 'rgba(0,0,0,0.055)' : 'rgba(0,0,0,0.08)';
       this.ctx.fillRect(0, 0, this.size, this.size);
       for (let i = this.trail.length - 1; i >= 0; i--) {
         const p = this.trail[i];
@@ -876,7 +890,8 @@ void main(){
         const rad = this.size * this.radiusFactor * Math.min(intensity, 1.0);
         const px = p.x * this.size, py = (1 - p.y) * this.size;
         const g = this.ctx.createRadialGradient(px, py, 0, px, py, rad);
-        g.addColorStop(0, `rgba(255,255,255,${Math.min(1, 0.85 * intensity)})`);
+        g.addColorStop(0, `rgba(255,255,255,${Math.min(1, 0.95 * intensity)})`);
+        g.addColorStop(0.4, `rgba(255,255,255,${Math.min(1, 0.45 * intensity)})`);
         g.addColorStop(1, 'rgba(255,255,255,0)');
         this.ctx.beginPath();
         this.ctx.fillStyle = g;
@@ -1000,7 +1015,7 @@ void main(){
       uTime:       { value: 0 },
       uDepth:      { value: 30.0 },
       uSize:       { value: window.innerWidth < 768 ? 3.3 : 4.0 },  /* 2.2 * 1.5 DPR comp */
-      uPush:       { value: window.innerWidth < 768 ? 9.0 : 20.0 },
+      uPush:       { value: window.innerWidth < 768 ? 14.0 : 20.0 },
       uScrollY:    { value: 0 },
       uTouch:      { value: touchTex.texture },
       uResolution: { value: new THREE.Vector2(CW, CH) },
@@ -1378,7 +1393,7 @@ void main(){
     if (canvas2CenterDoc >= 0) placeCanvas2(canvas2CenterDoc);  // re-place + retarget
     material.uniforms.uResolution.value.set(w2, h2);
     material.uniforms.uSize.value = window.innerWidth < 768 ? 3.3 : 4.0;
-    material.uniforms.uPush.value = window.innerWidth < 768 ? 9.0 : 20.0;
+    material.uniforms.uPush.value = window.innerWidth < 768 ? 14.0 : 20.0;
     touchTex.radiusFactor = window.innerWidth < 768 ? 0.07 : 0.045;
   });
 })();
