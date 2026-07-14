@@ -351,6 +351,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   color:#fff;
   text-align:center;
   line-height:1.35;
+  margin-top:-10px;   /* Figma: 10px name->title gap (flex gap is 20px) */
 }
 
 /* ===================== OUR MISSION SECTION ===================== */
@@ -363,7 +364,9 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:40px;
+  /* Figma: 10px between heading and body copy; the planet then sits 80px
+     below the text block (10 + 70 margin on the anchor) */
+  gap:10px;
   overflow:hidden;
 }
 .mission h2{
@@ -384,8 +387,15 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 }
 /* planet photo replaced by particle silhouette */
 .mission-planet{ display:none }
+/* Figma: 1082x478 (ratio 2.26, matching the source image's 600x266) — the
+   old 700x247 anchor (ratio 2.83) stretched the particle planet ~25%
+   horizontally. Width caps at the viewport on smaller screens while the
+   aspect-ratio keeps the mapping true. */
 .planet-anchor{
-  width:700px;height:247px;
+  width:min(1082px, 90vw);
+  aspect-ratio:1082 / 478;
+  height:auto;
+  margin-top:70px;   /* 10px flex gap + 70px = Figma's 80px text->planet gap */
   pointer-events:none;flex-shrink:0;
 }
 
@@ -426,10 +436,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .team-member-name{font-size:20px}
   .team-member-title{font-size:14px}
   /* Mission section mobile */
-  .mission{padding:0 20px 80px;gap:20px}
+  .mission{padding:0 20px 80px;gap:10px}
   .mission h2{font-size:24px}
   .mission p{font-size:14px}
-  .planet-anchor{width:280px;height:99px}
+  .planet-anchor{width:min(340px,88vw);height:auto;margin-top:30px}  /* aspect-ratio inherited */
 }
 </style>
 </head>
