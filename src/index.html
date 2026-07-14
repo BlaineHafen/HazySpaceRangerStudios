@@ -235,6 +235,16 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   font-weight:400;
   color:#fff;
 }
+/* One-time wipe-down reveal: JS stamps .pre (hidden state) on load, then .in
+   when the block first scrolls into view. The cascade runs top line → label
+   → bottom line and the final state persists. No-JS pages skip .pre entirely,
+   so content is never lost. */
+.transition .transition-line{transform-origin:top center}
+.transition.pre .transition-line{transform:scaleY(0)}
+.transition.pre h3{opacity:0;transform:translateY(-14px)}
+.transition.in .transition-line:first-child{transform:scaleY(1);transition:transform .7s cubic-bezier(.22,1,.36,1)}
+.transition.in h3{opacity:1;transform:none;transition:opacity .5s ease .5s, transform .5s cubic-bezier(.22,1,.36,1) .5s}
+.transition.in .transition-line:last-child{transform:scaleY(1);transition:transform .7s cubic-bezier(.22,1,.36,1) .9s}
 
 /* ===================== PROJECT CELESTRA ===================== */
 .celestra{
@@ -628,6 +638,25 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 
   if (document.readyState === 'complete') begin();
   else window.addEventListener('load', begin);
+})();
+</script>
+
+<script>
+// === Transition divider wipe-down reveal (one-time) ===
+(() => {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const els = document.querySelectorAll('.transition');
+  if (!els.length || !('IntersectionObserver' in window)) return;
+  els.forEach(el => el.classList.add('pre'));
+  const io = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);   // reveal once, stay revealed
+      }
+    }
+  }, { threshold: 0.35 });
+  els.forEach(el => io.observe(el));
 })();
 </script>
 
