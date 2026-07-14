@@ -643,7 +643,10 @@ import * as THREE from 'three';
 (() => {
   const isMobile = window.innerWidth < 768;
   const PARTICLE_COUNT = isMobile ? 1000 : 3000;
-  const TOUCH_SIZE    = isMobile ? 64   : 96;
+  // Mobile needs the HIGHER resolution: with a small texture the finger's glow
+  // splat spans only ~3 texels and renders as a weak blocky blob. 128px gives
+  // the radial gradient room to be an actual halo (canvas cost is trivial).
+  const TOUCH_SIZE    = isMobile ? 128  : 96;
 
   // --- Simplex 2D noise (inline GLSL) ---
   const snoise2D = `
@@ -828,7 +831,7 @@ void main(){
       this.last = {};          // per-pointer last position, keyed by id (mouse / finger)
       // radius of the glow/displacement splat as a fraction of the screen —
       // much tighter on mobile so the effect stays focused under the finger
-      this.radiusFactor = window.innerWidth < 768 ? 0.055 : 0.045;
+      this.radiusFactor = window.innerWidth < 768 ? 0.07 : 0.045;
       this.canvas = document.createElement('canvas');
       this.canvas.width = this.canvas.height = this.size;
       this.ctx = this.canvas.getContext('2d');
@@ -850,7 +853,7 @@ void main(){
       this.last[id] = { x: pt.x, y: pt.y };
       // touch points glow stronger than the mouse (fingertips are bigger and
       // mobile only gets a glimpse between scroll repaints)
-      this.trail.push({ x: pt.x, y: pt.y, age: 0, force, scale: isTouch ? 1.9 : 1.0 });
+      this.trail.push({ x: pt.x, y: pt.y, age: 0, force, scale: isTouch ? 2.2 : 1.0 });
     }
     endTouch(id) { delete this.last[id == null ? 'mouse' : id]; }
     update() {
@@ -1296,6 +1299,8 @@ void main(){
   let lastRender = performance.now();
   let lastRaf = 0;
   let smoothScrollY = 0;
+  const PARALLAX_TAU   = isMobile ? 0.4 : 0.25;   // smoothing time constant (s)
+  const PARALLAX_SCALE = isMobile ? 0.75 : 1.0;   // gentler depth shift on mobile
   function renderFrame(fromRaf) {
     const now = performance.now();
     if (!fromRaf) {
@@ -1308,8 +1313,12 @@ void main(){
     lastRender = now;
     material.uniforms.uTime.value += dt;
     // Smooth the raw scroll value so parallax eases rather than snapping.
-    smoothScrollY += (window.scrollY - smoothScrollY) * Math.min(dt * 4, 1);
-    material.uniforms.uScrollY.value = smoothScrollY;
+    // Exponential smoothing is frame-rate independent (same feel at 60/120Hz);
+    // mobile gets a longer time constant — native touch scroll delivers raw,
+    // steppy positions, and the background can afford to trail silkily since
+    // nothing in it is anchored to the content.
+    smoothScrollY += (window.scrollY - smoothScrollY) * (1 - Math.exp(-dt / PARALLAX_TAU));
+    material.uniforms.uScrollY.value = smoothScrollY * PARALLAX_SCALE;
     updatePortraits(window.scrollY);
     touchTex.update();
     renderer.render(scene, camera);
@@ -1370,7 +1379,7 @@ void main(){
     material.uniforms.uResolution.value.set(w2, h2);
     material.uniforms.uSize.value = window.innerWidth < 768 ? 3.3 : 4.0;
     material.uniforms.uPush.value = window.innerWidth < 768 ? 9.0 : 20.0;
-    touchTex.radiusFactor = window.innerWidth < 768 ? 0.055 : 0.045;
+    touchTex.radiusFactor = window.innerWidth < 768 ? 0.07 : 0.045;
   });
 })();
 </script>
