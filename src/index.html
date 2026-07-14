@@ -41,6 +41,20 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 #shooting-stars.visible{
   opacity:1;
 }
+/* Portrait particle layer: absolute (in document flow), so the compositor
+   moves it WITH the page content — portraits are glued to their sections
+   with zero scroll lag, natively, on every platform. 200lvh tall so a
+   forming section plus its neighbors fit; JS re-centers it (rarely, and
+   atomically with a retarget) on whichever anchor is activating. */
+#portrait-canvas{
+  position:absolute;top:0;left:0;width:100%;
+  height:200vh;height:200lvh;
+  z-index:0;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 2s ease;
+}
+#portrait-canvas.visible{opacity:1}
 /* Stripes scroll WITH the page (absolute, document-tall) — above the fixed
    starfield, below the content/nav. Height is set in JS to the document height. */
 #stripes-canvas{
@@ -424,6 +438,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 <!-- Particle Background -->
 <canvas id="particle-canvas"></canvas>
 <canvas id="shooting-stars"></canvas>
+<!-- Portrait particle layer — lives IN the document so the compositor scrolls
+     it together with the content (zero scroll lag). JS repositions it to
+     whichever section is currently forming. -->
+<canvas id="portrait-canvas"></canvas>
 <!-- Right-side racing stripes (halftone formation) -->
 <canvas id="stripes-canvas"></canvas>
 
@@ -554,6 +572,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     // Reveal the background layers
     document.getElementById('particle-canvas').classList.add('visible');
     document.getElementById('shooting-stars').classList.add('visible');
+    document.getElementById('portrait-canvas').classList.add('visible');
     document.getElementById('stripes-canvas').classList.add('visible');
 
     // The badge logo and text load in together
@@ -735,6 +754,9 @@ uniform float uBright;
 uniform sampler2D uTexture;
 uniform sampler2D uTouch;
 uniform vec2 uResolution;
+uniform float uViewOff;   // scrollY - portrait-canvas document top (css px)
+uniform float uViewH;     // visible viewport height (css px)
+uniform float uCanvasH;   // portrait canvas height (css px)
 
 varying float vBrightness;
 
@@ -760,8 +782,11 @@ void main(){
   path.y += sin(angle) * arc;
   vec3 displaced = path;
 
+  // World coords live in the document-anchored portrait canvas; convert to
+  // viewport fraction (what the touch texture is drawn in) via the canvas's
+  // current offset from the scroll position.
   vec2 touchUV = vec2((displaced.x / uResolution.x) + 0.5,
-                      1.0 - ((displaced.y / uResolution.y) + 0.5));
+                      (uCanvasH * 0.5 - displaced.y - uViewOff) / uViewH);
   float t = texture2D(uTouch, touchUV).r * (1.0 - f * 0.6);
   displaced.x += cos(angle) * t * 20.0;
   displaced.y += sin(angle) * t * 20.0;
@@ -888,6 +913,40 @@ void main(){
   const camera = new THREE.OrthographicCamera(-CW / 2, CW / 2, CH / 2, -CH / 2, 1, 1000);
   camera.position.z = 500;
 
+  // --- Portrait layer: its own renderer on the document-anchored canvas ---
+  // Transparent (it overlays the scatter-star canvas), scrolled by the
+  // compositor together with the page content — this is what makes the
+  // particle images track their sections with zero lag.
+  const canvas2 = document.getElementById('portrait-canvas');
+  const renderer2 = new THREE.WebGLRenderer({ canvas: canvas2, alpha: true, antialias: false, powerPreference: 'high-performance' });
+  renderer2.setClearColor(0x000000, 0);
+  renderer2.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  let P2H = canvas2.clientHeight || CH * 2;
+  renderer2.setSize(CW, P2H, false);
+  const scene2 = new THREE.Scene();
+  const camera2 = new THREE.OrthographicCamera(-CW / 2, CW / 2, P2H / 2, -P2H / 2, 1, 1000);
+  camera2.position.z = 500;
+
+  // Where the portrait canvas currently sits in the document, and shared
+  // uniforms that map world coords back to viewport space for the touch glow.
+  let canvas2Top = 0, canvas2CenterDoc = -1;
+  const sharedViewOff = { value: 0 };                       // scrollY - canvas2Top
+  const sharedViewH   = { value: window.innerHeight };
+  const sharedCanvasH = { value: P2H };
+  const portraitSystems = [];
+
+  // Re-center the portrait canvas on an activating anchor and retarget every
+  // system in the same frame: already-visible portraits keep their exact
+  // document position (canvas moves, targets move oppositely), so the jump
+  // is invisible.
+  function placeCanvas2(centerDocY) {
+    canvas2CenterDoc = centerDocY;
+    const maxTop = Math.max(0, document.documentElement.scrollHeight - P2H);
+    canvas2Top = Math.min(Math.max(0, centerDocY - P2H / 2), maxTop);
+    canvas2.style.transform = 'translateY(' + canvas2Top + 'px)';
+    for (const s of portraitSystems) s.retarget();
+  }
+
   const touchTex = new TouchTexture();
 
   // Create scatter star particles (background field only — ant/portraits are separate)
@@ -996,6 +1055,9 @@ void main(){
         uTexture:    { value: null },
         uTouch:      material.uniforms.uTouch,
         uResolution: material.uniforms.uResolution,
+        uViewOff:    sharedViewOff,
+        uViewH:      sharedViewH,
+        uCanvasH:    sharedCanvasH,
       },
       transparent: true,
       depthTest:   false,
@@ -1006,7 +1068,7 @@ void main(){
     // Hidden until the portrait actually starts forming — a dissolved portrait
     // otherwise still costs a draw call + full vertex pass every frame.
     mesh.visible = false;
-    scene.add(mesh);
+    scene2.add(mesh);
 
     const el = document.getElementById(anchorId);
     let pts = null, texLoaded = false, poolReady = false;
@@ -1085,20 +1147,36 @@ void main(){
     img.src = photoSrc;
 
     const ready = () => poolReady && texLoaded;
-    let lastUploadScrollY = -Infinity;
 
-    return function update(currentScrollY) {
+    // Recompute world targets in the portrait-canvas coordinate space from the
+    // anchor's DOCUMENT position. Called only when the canvas is re-placed or
+    // the layout changes — never per scroll frame. While the user scrolls, the
+    // compositor moves canvas and content together, so targets stay valid.
+    function retarget() {
+      if (!pts || !el) return;
+      const r = el.getBoundingClientRect();
+      const docTop = r.top + window.scrollY;
+      const n = Math.min(PC, pts.length);
+      for (let k = 0; k < n; k++) {
+        const p = pts[k];
+        tgt[k*3]   = r.left + p.u * r.width - CW/2;
+        tgt[k*3+1] = P2H/2 - (docTop + p.v * r.height - canvas2Top);
+      }
+      tgtAttr.needsUpdate = true;
+    }
+
+    function update() {
       if (!ready() || !el) return 0;
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight;
       const cy = r.top + r.height * 0.5;
-      // 180px margin ensures portrait particles (±150px from center) stay
-      // safely inside the viewport frustum and never get hardware-clipped
       const inView = r.height > 0 && cy > 180 && cy < vh - 180;
 
       if (inView && !formed) {
         formed = true; fFrom = mat.uniforms.uForm.value; fTarget = 1; fStart = performance.now();
-        lastUploadScrollY = -Infinity; // force upload on next frame
+        // Center the portrait canvas on this anchor; retargets ALL systems
+        // atomically so anything already visible doesn't visually move.
+        placeCanvas2(cy + window.scrollY);
       } else if (!inView && formed) {
         formed = false; fFrom = mat.uniforms.uForm.value; fTarget = 0; fStart = performance.now();
       }
@@ -1114,27 +1192,12 @@ void main(){
       // Cull the whole mesh once fully dissolved — no draw call, no vertex work
       mesh.visible = fTarget > 0 || u.value > 0.004;
 
-      // Only recompute world-space targets when the page has scrolled or the
-      // viewport changed size (mobile URL bar collapse alters innerHeight
-      // mid-scroll, which moves both the anchor rect and the world math —
-      // without this, particles hold stale positions and appear to drift
-      // against the surrounding content).
-      const uploadKey = currentScrollY + window.innerHeight * 1e7;
-      if ((u.value > 0.01 || fTarget > 0) && pts && uploadKey !== lastUploadScrollY) {
-        lastUploadScrollY = uploadKey;
-        // World is sized by the canvas (100lvh, stable), and rect coords are
-        // viewport-relative which equals canvas-relative since the fixed
-        // canvas top is glued to the viewport top.
-        const n = Math.min(PC, pts.length);
-        for (let k = 0; k < n; k++) {
-          const p = pts[k];
-          tgt[k*3]   = r.left + p.u * r.width  - CW/2;
-          tgt[k*3+1] = CH/2 - (r.top + p.v * r.height);
-        }
-        tgtAttr.needsUpdate = true;
-      }
       return u.value;
-    };
+    }
+
+    const system = { update, retarget, isVisible: () => mesh.visible };
+    portraitSystems.push(system);
+    return system;
   }
 
   // Ant uses the same texture-sampled portrait system as the team photos —
@@ -1149,10 +1212,19 @@ void main(){
 
   // Track how many portraits are actively assembled so we can dim background stars
   let _portraitFormSum = 0;
+  let _anyPortraitVisible = false;
 
   function updatePortraits(scrollY) {
     _portraitFormSum = 0;
-    for (const upd of portraitUpdaters) _portraitFormSum += upd(scrollY);
+    _anyPortraitVisible = false;
+    // Touch-glow mapping: where the viewport currently sits within the
+    // document-anchored portrait canvas.
+    sharedViewOff.value = scrollY - canvas2Top;
+    sharedViewH.value = window.innerHeight;
+    for (const sys of portraitUpdaters) {
+      _portraitFormSum += sys.update();
+      if (sys.isVisible()) _anyPortraitVisible = true;
+    }
     // Dim main scatter stars further while portraits are visible
     const targetBright = _portraitFormSum > 0.1
       ? Math.max(0.15, 1.0 - _portraitFormSum * 0.17)
@@ -1224,14 +1296,16 @@ void main(){
     updatePortraits(window.scrollY);
     touchTex.update();
     renderer.render(scene, camera);
+    // Portrait layer renders only while something is actually forming/visible
+    if (_anyPortraitVisible) renderer2.render(scene2, camera2);
   }
-  // --- Lenis virtual scroll ---
-  // The page no longer scrolls natively: Lenis intercepts wheel/touch and
-  // writes the scroll position itself, once per rAF, right before we render.
-  // Particles and page content therefore always land in the same frame —
-  // this is the structural fix for the mobile scroll lag. syncTouch extends
-  // the same treatment to touch dragging and momentum on mobile.
-  const lenis = window.Lenis ? new window.Lenis({ syncTouch: true }) : null;
+  // --- Lenis smooth scroll (desktop wheel only) ---
+  // Touch scrolling stays NATIVE: syncTouch re-implements inertia in JS and
+  // never feels right on iOS (Chrome on iOS is WebKit). Portraits don't need
+  // scroll sync anymore — they live on a document-anchored canvas that the
+  // compositor moves together with the content, so they're glued to their
+  // sections regardless of how the page is scrolled.
+  const lenis = window.Lenis ? new window.Lenis() : null;
 
   // Anchor links must route through Lenis (native jumps would fight it)
   document.querySelectorAll('a[href^="#"]').forEach(a => {
@@ -1268,6 +1342,14 @@ void main(){
     camera.left = -w2 / 2; camera.right = w2 / 2;
     camera.top = h2 / 2; camera.bottom = -h2 / 2;
     camera.updateProjectionMatrix();
+    // Portrait layer follows suit
+    P2H = canvas2.clientHeight || h2 * 2;
+    renderer2.setSize(w2, P2H, false);
+    camera2.left = -w2 / 2; camera2.right = w2 / 2;
+    camera2.top = P2H / 2; camera2.bottom = -P2H / 2;
+    camera2.updateProjectionMatrix();
+    sharedCanvasH.value = P2H;
+    if (canvas2CenterDoc >= 0) placeCanvas2(canvas2CenterDoc);  // re-place + retarget
     material.uniforms.uResolution.value.set(w2, h2);
     material.uniforms.uSize.value = window.innerWidth < 768 ? 3.3 : 4.0;
     material.uniforms.uPush.value = window.innerWidth < 768 ? 9.0 : 20.0;
