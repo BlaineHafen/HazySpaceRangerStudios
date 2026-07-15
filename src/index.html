@@ -8,7 +8,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Hazy Space Ranger Studios</title>
-<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<!-- PNG favicon rebuilt to fill the tile: the old SVG had ~65px of padding
+     inside a full-circle background, which read as empty space in the tab -->
+<link rel="icon" type="image/png" href="assets/favicon.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anta&family=Dancing+Script:wght@600&family=Montserrat:wght@400;500&family=Outfit:wght@200;300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -403,11 +405,95 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
    aspect-ratio keeps the mapping true. */
 .planet-anchor{
   width:min(1082px, 90vw);
-  aspect-ratio:1082 / 478;
+  aspect-ratio:1082 / 545;   /* new ChatGPT planet artwork's native ratio */
   height:auto;
   margin-top:70px;   /* 10px flex gap + 70px = Figma's 80px text->planet gap */
   pointer-events:none;flex-shrink:0;
 }
+
+/* ===================== STAY IN ORBIT (SOCIAL) ===================== */
+.orbit{
+  position:relative;
+  z-index:2;
+  width:100%;
+  background:transparent;
+  padding:120px 80px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:80px;
+  overflow:hidden;
+}
+.orbit-head{
+  display:flex;flex-direction:column;gap:10px;
+  align-items:center;text-align:center;max-width:800px;
+}
+.orbit h2{
+  font-family:'Anta',sans-serif;
+  font-size:48px;font-weight:400;color:#fff;
+}
+.orbit p{
+  font-family:'Montserrat',sans-serif;
+  font-size:24px;font-weight:400;line-height:1.35;color:#fff;
+}
+.social-grid{
+  display:flex;gap:120px;
+  align-items:flex-end;justify-content:center;flex-wrap:wrap;
+}
+/* whole block (icon + handle) is one link: hover states tied together */
+.social-group{
+  display:flex;flex-direction:column;align-items:center;gap:20px;
+  color:#a7a7a7;text-decoration:none;
+  transition:color .3s ease, transform .3s ease;
+}
+.social-group:hover{color:#fff;transform:translateY(-4px)}
+.social-icon{height:100px;display:flex;align-items:center;justify-content:center}
+.social-icon svg{display:block}
+.social-handle{
+  font-family:'Montserrat',sans-serif;
+  font-size:16px;font-weight:400;
+  text-decoration:underline;text-underline-position:from-font;
+  color:inherit;
+}
+
+/* ===================== "OUT THERE" PARTICLE SIGN-OFF ===================== */
+.outthere{
+  position:relative;
+  z-index:2;
+  width:100%;
+  background:transparent;
+  padding:200px 80px 40px;
+  display:flex;
+  justify-content:center;
+}
+.outthere-anchor{
+  width:min(644px, 84vw);
+  aspect-ratio:644 / 560;
+  height:auto;
+  pointer-events:none;flex-shrink:0;
+}
+
+/* ===================== FOOTER ===================== */
+.footer{
+  position:relative;
+  z-index:2;
+  width:100%;
+  background:#050505;
+  padding:40px 0 0;
+  overflow:hidden;
+}
+.footer-brand{
+  display:flex;flex-direction:column;gap:16px;
+  align-items:flex-start;
+  padding:0 40px;
+}
+.footer-brand img{height:36px;width:auto;display:block}
+.footer-legal{
+  font-family:'Montserrat',sans-serif;
+  font-size:10px;font-weight:400;line-height:1.5;
+  color:#fff;max-width:1049px;
+}
+#footer-stripes{display:block;width:100%;height:171px;margin-top:8px}
 
 /* ===================== RESPONSIVE ===================== */
 @media(max-width:768px){
@@ -450,6 +536,18 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .mission h2{font-size:24px}
   .mission p{font-size:14px}
   .planet-anchor{width:min(340px,88vw);height:auto;margin-top:30px}  /* aspect-ratio inherited */
+  /* Interim mobile treatment for new sections (proper mobile designs TBD) */
+  .orbit{padding:80px 20px;gap:40px}
+  .orbit h2{font-size:24px}
+  .orbit p{font-size:16px}
+  .social-grid{gap:48px}
+  .social-icon{height:64px}
+  .social-icon svg{height:56px;width:auto}
+  .social-handle{font-size:13px}
+  .outthere{padding:120px 20px 20px}
+  .footer-brand{padding:0 20px}
+  .footer-brand img{height:28px}
+  #footer-stripes{height:110px}
 }
 </style>
 </head>
@@ -572,6 +670,53 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   <p>We're a Chicago-based tabletop game studio on a mission to build worlds worth exploring. Every game we make is a voyage into the unknown — strange galaxies, fierce crews, and stories that reach far beyond the event horizon.</p>
   <div class="planet-anchor" id="portrait-planet"></div>
 </section>
+
+<!-- Mission Control transition divider -->
+<section class="transition" id="crew-transition">
+  <span class="transition-line"></span>
+  <h3>Mission Control</h3>
+  <span class="transition-line"></span>
+</section>
+
+<!-- Stay In Orbit — social links -->
+<section class="orbit" id="crew">
+  <div class="orbit-head">
+    <h2>Stay In Orbit</h2>
+    <p>Follow Hazy Space Ranger Studios on social media to catch our latest transmissions, see what's happening behind the scenes, and get the occasional peek at what we're building next. From big milestones to small wins, we'd love to have you along for the ride as we chart this journey together.</p>
+  </div>
+  <div class="social-grid">
+    <a class="social-group" href="https://www.tiktok.com/@hazyspacerangerstudios?_r=1&amp;_t=ZT-982Trlrng7B" target="_blank" rel="noopener">
+      <span class="social-icon"><svg width="87" height="100" viewBox="0 0 109 125" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M94.8844 26.7854C94.0456 26.3519 93.2292 25.8768 92.4381 25.3617C90.1376 23.8407 88.0282 22.0486 86.1556 20.0239C81.4703 14.663 79.7204 9.22433 79.0758 5.41665H79.1017C78.5633 2.25586 78.786 0.210938 78.8195 0.210938H57.4793V82.7299C57.4793 83.8377 57.4793 84.9327 57.4326 86.0148C57.4326 86.1493 57.4197 86.2736 57.412 86.4185C57.412 86.4781 57.412 86.5403 57.3991 86.6024C57.3991 86.6179 57.3991 86.6334 57.3991 86.6489C57.1741 89.6097 56.225 92.4698 54.6353 94.9778C53.0455 97.4856 50.8637 99.5643 48.2821 101.031C45.5913 102.562 42.5481 103.365 39.4524 103.361C29.5096 103.361 21.4513 95.2534 21.4513 85.2407C21.4513 75.2281 29.5096 67.1207 39.4524 67.1207C41.3345 67.1189 43.2051 67.4151 44.9946 67.9981L45.0205 46.2696C39.588 45.5679 34.0689 45.9996 28.8117 47.5375C23.5543 49.0756 18.6729 51.6865 14.475 55.2054C10.7969 58.4012 7.70469 62.2145 5.33746 66.4735C4.43654 68.0267 1.03771 74.2678 0.626153 84.3969C0.367334 90.1462 2.09391 96.1025 2.91702 98.5642V98.6159C3.43482 100.066 5.44098 105.012 8.71041 109.183C11.3467 112.528 14.4613 115.466 17.9542 117.904V117.852L18.006 117.904C28.337 124.924 39.7915 124.463 39.7915 124.463C41.7744 124.383 48.4166 124.463 55.9597 120.888C64.3261 116.925 69.0891 111.02 69.0891 111.02C72.1319 107.492 74.5514 103.472 76.244 99.131C78.175 94.0548 78.8195 87.9665 78.8195 85.5333V41.7552C79.0785 41.9104 82.5264 44.1909 82.5264 44.1909C82.5264 44.1909 87.494 47.3749 95.2442 49.4485C100.804 50.9239 108.296 51.2345 108.296 51.2345V30.0495C105.671 30.3342 100.341 29.506 94.8844 26.7854Z" fill="currentColor"/></svg></span>
+      <span class="social-handle">@hazyspacerangerstudios</span>
+    </a>
+    <a class="social-group" href="https://www.instagram.com/hazyspacerangerstudios/?utm_source=ig_web_button_share_sheet" target="_blank" rel="noopener">
+      <span class="social-icon"><svg width="100" height="100" viewBox="0 0 125 125" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M62.5 12.0779C78.9223 12.0779 80.8674 12.1406 87.3535 12.4365C93.3501 12.7102 96.6064 13.7119 98.7739 14.5542C101.445 15.5402 103.862 17.1123 105.846 19.155C107.888 21.1389 109.461 23.5554 110.447 26.2268C111.289 28.394 112.291 31.6506 112.564 37.6472C112.86 44.1328 112.923 46.0779 112.923 62.5007C112.923 78.9236 112.86 80.8682 112.564 87.3542C112.29 93.3508 111.289 96.6072 110.447 98.7747C109.423 101.427 107.856 103.836 105.846 105.846C103.835 107.857 101.426 109.424 98.7739 110.447C96.6067 111.29 93.3501 112.292 87.3535 112.565C80.8691 112.861 78.924 112.924 62.5 112.924C46.0759 112.924 44.1316 112.861 37.6465 112.565C31.6499 112.291 28.3935 111.289 26.226 110.447C23.5546 109.461 21.1382 107.889 19.1543 105.846C17.1116 103.863 15.5394 101.446 14.5534 98.7747C13.7112 96.6074 12.7092 93.3508 12.4358 87.3542C12.1399 80.8689 12.0771 78.9236 12.0771 62.5007C12.0771 46.0779 12.1399 44.1333 12.4358 37.6472C12.7094 31.6506 13.7112 28.3943 14.5534 26.2268C15.5395 23.5553 17.1118 21.1387 19.1548 19.1548C21.1387 17.1121 23.5551 15.5399 26.2265 14.554C28.3938 13.7117 31.6504 12.7097 37.6469 12.4363C44.1325 12.1404 46.0776 12.0776 62.5005 12.0776M62.5005 0.99585C45.7969 0.99585 43.7016 1.06665 37.1426 1.36597C30.5959 1.66479 26.1252 2.70435 22.2131 4.22485C18.1093 5.7692 14.3917 8.19013 11.3196 11.3188C8.19014 14.3908 5.76853 18.1084 4.22361 22.2124C2.70432 26.1248 1.66477 30.5955 1.36716 37.1421C1.06663 43.7012 0.995827 45.7964 0.995827 62.5C0.995827 79.2036 1.06663 81.2988 1.36716 87.8579C1.66599 94.4045 2.70554 98.8752 4.22605 102.787C5.7704 106.891 8.19134 110.609 11.32 113.681C14.3921 116.81 18.1097 119.231 22.2136 120.775C26.126 122.295 30.5967 123.335 37.143 123.634C43.7031 123.933 45.7976 124.004 62.501 124.004C79.2043 124.004 81.2998 123.933 87.8589 123.634C94.4055 123.335 98.8762 122.295 102.788 120.775C106.874 119.195 110.584 116.778 113.682 113.681C116.779 110.583 119.196 106.873 120.776 102.787C122.296 98.875 123.336 94.4043 123.635 87.8579C123.934 81.2979 124.005 79.2034 124.005 62.5C124.005 45.7966 123.934 43.7012 123.635 37.1421C123.336 30.5955 122.296 26.1248 120.776 22.2126C119.232 18.1088 116.811 14.3912 113.682 11.3191C110.61 8.18975 106.892 5.7683 102.788 4.22363C98.8752 2.70435 94.4045 1.66479 87.8579 1.36719C81.2988 1.06665 79.2036 0.99585 62.5 0.99585H62.5005Z" fill="currentColor"/><path d="M62.5 30.9167C56.2534 30.9167 50.1471 32.7691 44.9533 36.2395C39.7595 39.7099 35.7114 44.6425 33.3209 50.4136C30.9304 56.1847 30.305 62.535 31.5236 68.6616C32.7423 74.7881 35.7503 80.4157 40.1673 84.8327C44.5843 89.2497 50.2119 92.2577 56.3384 93.4764C62.465 94.695 68.8153 94.0696 74.5864 91.6791C80.3575 89.2887 85.2901 85.2406 88.7605 80.0467C92.2309 74.8529 94.0833 68.7466 94.0833 62.5C94.0833 54.1236 90.7557 46.0903 84.8327 40.1673C78.9097 34.2443 70.8764 30.9167 62.5 30.9167ZM62.5 83.0012C58.4453 83.0012 54.4816 81.7988 51.1102 79.546C47.7388 77.2933 45.1112 74.0914 43.5595 70.3453C42.0079 66.5992 41.6019 62.4771 42.393 58.5003C43.1841 54.5234 45.1366 50.8705 48.0038 48.0034C50.8709 45.1362 54.5239 43.1837 58.5008 42.3927C62.4776 41.6017 66.5997 42.0077 70.3458 43.5594C74.0919 45.1111 77.2937 47.7388 79.5464 51.1102C81.7991 54.4816 83.0015 58.4452 83.0015 62.5C83.0014 67.9373 80.8414 73.1518 76.9967 76.9966C73.1519 80.8413 67.9373 83.0012 62.5 83.0012Z" fill="currentColor"/><path d="M95.331 37.0493C99.4071 37.0493 102.711 33.745 102.711 29.6689C102.711 25.5929 99.4071 22.2886 95.331 22.2886C91.255 22.2886 87.9507 25.5929 87.9507 29.6689C87.9507 33.745 91.255 37.0493 95.331 37.0493Z" fill="currentColor"/></svg></span>
+      <span class="social-handle">@hazyspacerangerstudios</span>
+    </a>
+    <a class="social-group" href="https://x.com/hazyspaceranger?s=11" target="_blank" rel="noopener">
+      <span class="social-icon"><svg width="100" height="90" viewBox="0 0 125 113" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M98.3333 0H117.5L75.4167 47.9167L124.583 112.917H86L55.7917 73.4167L21.2083 112.917H2.04167L46.625 61.6667L-0.458328 0H39.0833L66.375 36.0833L98.3333 0ZM91.625 101.667H102.25L33.5 10.8333H22.0833L91.625 101.667Z" fill="currentColor"/></svg></span>
+      <span class="social-handle">@HazySpaceRanger</span>
+    </a>
+    <a class="social-group" href="https://youtube.com/@hazyspacerangerstudios?si=RxIg43TPQly6tyYi" target="_blank" rel="noopener">
+      <span class="social-icon"><svg width="113" height="80" viewBox="0 0 142 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M139.688 22.2303C139.688 22.2303 138.333 12.5428 134.115 8.27198C128.802 2.64698 122.76 2.64698 120.052 2.33448C100.365 0.928225 70.8854 0.928223 70.8854 0.928223H70.8333C70.8333 0.928223 41.3542 0.928225 21.6667 2.33448C18.9063 2.64698 12.9167 2.69906 7.60417 8.27198C3.38542 12.5428 2.03126 22.2303 2.03126 22.2303C2.03126 22.2303 0.625008 33.5845 0.625008 44.9907V55.6678C0.625008 67.022 2.03126 78.4282 2.03126 78.4282C2.03126 78.4282 3.38542 88.1157 7.60417 92.3866C12.9688 98.0116 19.9479 97.8032 23.0729 98.3761C34.3229 99.4699 70.8333 99.7824 70.8333 99.7824C70.8333 99.7824 100.365 99.7303 120.052 98.3241C122.813 98.0116 128.802 97.9595 134.115 92.3866C138.333 88.1157 139.688 78.4282 139.688 78.4282C139.688 78.4282 141.094 67.0741 141.094 55.6678V44.9907C141.094 33.5845 139.688 22.2303 139.688 22.2303ZM56.3021 68.5324V29.0532L94.2708 48.8449L56.3021 68.5324Z" fill="currentColor"/></svg></span>
+      <span class="social-handle">@HazySpaceRangerStudios</span>
+    </a>
+  </div>
+</section>
+
+<!-- "Out There" particle sign-off — rendered by the particle system -->
+<section class="outthere">
+  <div class="outthere-anchor" id="portrait-outthere"></div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-brand">
+    <img src="stamp-logo.svg" alt="Hazy Space Ranger Studios" />
+    <p class="footer-legal">© 2026 Hazy Space Ranger Studios LLC. All rights reserved. "Hazy Space Ranger Studios," "Out There," and "Project Celestra" are trademarks of Hazy Space Ranger Studios LLC, Chicago, IL. This site uses no cookies and collects no personal data.</p>
+  </div>
+  <canvas id="footer-stripes"></canvas>
+</footer>
 
 <script>
 // === Intro animation sequence ===
@@ -1294,11 +1439,12 @@ void main(){
   // Ant uses the same texture-sampled portrait system as the team photos —
   // same particle count, same shader, same brightness encoding, same feel.
   const portraitUpdaters = [
-    createPortrait('assets/ant-mask.png?v=4',       'celestra-ant'),
-    createPortrait('assets/team-blaine.png?v=4',    'portrait-blaine'),
-    createPortrait('assets/team-donnovan.png?v=4',  'portrait-donnovan'),
-    createPortrait('assets/team-pete.png?v=4',      'portrait-pete'),
-    createPortrait('assets/planet.png?v=4',         'portrait-planet'),
+    createPortrait('assets/ant-mask.png?v=5',       'celestra-ant'),
+    createPortrait('assets/team-blaine.png?v=5',    'portrait-blaine'),
+    createPortrait('assets/team-donnovan.png?v=5',  'portrait-donnovan'),
+    createPortrait('assets/team-pete.png?v=5',      'portrait-pete'),
+    createPortrait('assets/planet.png?v=5',         'portrait-planet'),
+    createPortrait('assets/out-there.png?v=5',      'portrait-outthere'),
   ];
 
   // Track how many portraits are actively assembled so we can dim background stars
@@ -1719,6 +1865,170 @@ void main(){
     resizeTimer = setTimeout(() => {
       buildGeometry();
       if (rafId === null) redrawStatic();   // keep finished bars in place
+    }, 120);
+  });
+})();
+</script>
+
+<script>
+// === Footer Racing Stripes: curved bands revealing LEFT -> RIGHT ===
+// Same behavior as the marquee stripes (solid stroke chased by a halftone dot
+// band) but horizontal: bands converge at the left edge and fan out to the
+// right, per the Figma footer. One-shot reveal when the footer scrolls into
+// view. Curves are sampled into polylines; the halftone uses the same fixed
+// screen-space dot grid so the band stays seamless along the curve.
+(() => {
+  const canvas = document.getElementById('footer-stripes');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const COLORS = ['#360084', '#8F0178', '#DF1A58', '#F5B345'];
+  const REVEAL_DUR = 2600, STAGGER = 170;
+  const easeIO = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+
+  let W = 0, H = 0;
+  const bars = COLORS.map(color => ({ color, pts: [], cum: [], L: 0, barW: 0, progress: 0, startTime: 0, running: false }));
+
+  // fraction of height each band's centerline sits at: [left edge, right edge]
+  const LEFT_Y  = [0.42, 0.55, 0.66, 0.76];
+  const RIGHT_Y = [0.12, 0.37, 0.62, 0.87];
+
+  function build() {
+    const cssW = document.documentElement.clientWidth || window.innerWidth;
+    const cssH = canvas.clientHeight || 171;
+    W = Math.round(cssW * DPR); H = Math.round(cssH * DPR);
+    canvas.width = W; canvas.height = H;
+    const N = 28;
+    bars.forEach((b, k) => {
+      const yl = LEFT_Y[k] * H, yr = RIGHT_Y[k] * H;
+      // cubic bezier: flat exit from the left cluster, sweeping fan on the right
+      const p0 = { x: -4, y: yl }, c1 = { x: W * 0.45, y: yl }, c2 = { x: W * 0.75, y: yr }, p1 = { x: W + 4, y: yr };
+      b.pts = []; b.cum = [0];
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, u = 1 - t;
+        b.pts.push({
+          x: u*u*u*p0.x + 3*u*u*t*c1.x + 3*u*t*t*c2.x + t*t*t*p1.x,
+          y: u*u*u*p0.y + 3*u*u*t*c1.y + 3*u*t*t*c2.y + t*t*t*p1.y,
+        });
+        if (i > 0) b.cum.push(b.cum[i-1] + Math.hypot(b.pts[i].x - b.pts[i-1].x, b.pts[i].y - b.pts[i-1].y));
+      }
+      b.L = b.cum[N];
+      b.barW = Math.max(10 * DPR, H * 0.085);
+    });
+  }
+
+  function at(b, s) {
+    s = Math.max(0, Math.min(b.L, s));
+    let i = 0;
+    while (i < b.pts.length - 2 && b.cum[i + 1] < s) i++;
+    const segLen = b.cum[i + 1] - b.cum[i];
+    const t = segLen > 0 ? (s - b.cum[i]) / segLen : 0;
+    const a = b.pts[i], c = b.pts[i + 1];
+    return { x: a.x + (c.x - a.x) * t, y: a.y + (c.y - a.y) * t };
+  }
+
+  function drawBar(b) {
+    const prog = b.progress;
+    if (prog <= 0) return;
+    const band = b.L * 0.16;
+    const revealed = prog * (b.L + band);
+    const solidLen = revealed - band;
+
+    if (solidLen > 0) {
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = b.barW;
+      ctx.lineCap = 'butt';
+      ctx.lineJoin = 'round';   // smooth curve — no sharp corners
+      ctx.beginPath();
+      ctx.moveTo(b.pts[0].x, b.pts[0].y);
+      for (let i = 1; i < b.pts.length; i++) {
+        if (b.cum[i] <= solidLen) { ctx.lineTo(b.pts[i].x, b.pts[i].y); }
+        else { const p = at(b, solidLen); ctx.lineTo(p.x, p.y); break; }
+      }
+      ctx.stroke();
+    }
+
+    // halftone band on a fixed grid, masked by distance to the curve
+    const cell = b.barW * 0.13, maxR = cell * 0.5, halfW = b.barW * 0.5;
+    ctx.fillStyle = b.color;
+    const from = Math.max(0, solidLen), to = Math.min(revealed, b.L);
+    if (to <= from) return;
+    const pA = at(b, from), pB = at(b, to);
+    const pad2 = halfW + cell;
+    const minX = Math.min(pA.x, pB.x) - pad2, maxX = Math.max(pA.x, pB.x) + pad2;
+    let minY = Math.min(pA.y, pB.y), maxY = Math.max(pA.y, pB.y);
+    // curve may bow between endpoints — include sampled points in range
+    for (let i = 0; i < b.pts.length; i++) {
+      if (b.cum[i] >= from && b.cum[i] <= to) { minY = Math.min(minY, b.pts[i].y); maxY = Math.max(maxY, b.pts[i].y); }
+    }
+    minY = Math.max(0, minY - pad2); maxY = Math.min(H, maxY + pad2);
+    for (let gy = Math.floor(minY / cell) * cell; gy <= maxY; gy += cell) {
+      const shift = (((gy / cell) | 0) % 2) ? cell * 0.5 : 0;
+      for (let gx = Math.floor(minX / cell) * cell + shift; gx <= maxX; gx += cell) {
+        // nearest segment: project on each segment in the s-window
+        let s = -1, dist = 1e9;
+        for (let i = 0; i < b.pts.length - 1; i++) {
+          if (b.cum[i + 1] < from - cell || b.cum[i] > to + cell) continue;
+          const ax = b.pts[i].x, ay = b.pts[i].y;
+          const dx = b.pts[i + 1].x - ax, dy = b.pts[i + 1].y - ay;
+          const len = b.cum[i + 1] - b.cum[i];
+          let t = ((gx - ax) * dx + (gy - ay) * dy) / (len * len);
+          t = Math.max(0, Math.min(1, t));
+          const qx = ax + dx * t - gx, qy = ay + dy * t - gy;
+          const d = Math.hypot(qx, qy);
+          if (d < dist) { dist = d; s = b.cum[i] + t * len; }
+        }
+        if (dist > halfW || s < from || s >= to) continue;
+        const cov = Math.max(0, Math.min(1, (revealed - s) / band));
+        const r = cov * maxR;
+        if (r < 0.4) continue;
+        ctx.beginPath();
+        ctx.arc(gx, gy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  let rafId = null;
+  function tick(now) {
+    ctx.clearRect(0, 0, W, H);
+    let anyRunning = false;
+    for (const b of bars) {
+      if (b.running) {
+        const t = Math.min((now - b.startTime) / REVEAL_DUR, 1);
+        b.progress = easeIO(Math.max(0, t));
+        if (t >= 1) { b.progress = 1; b.running = false; }
+        else anyRunning = true;
+      }
+      drawBar(b);
+    }
+    rafId = anyRunning ? requestAnimationFrame(tick) : null;
+  }
+
+  build();
+
+  let started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    const now = performance.now();
+    bars.forEach((b, i) => { b.running = true; b.startTime = now + i * STAGGER; b.progress = 0; });
+    if (rafId === null) rafId = requestAnimationFrame(tick);
+  }
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) { start(); io.disconnect(); }
+    }, { threshold: 0.3 });
+    io.observe(canvas);
+  } else { start(); }
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      build();
+      if (rafId === null && started) { ctx.clearRect(0, 0, W, H); for (const b of bars) drawBar(b); }
     }, 120);
   });
 })();
