@@ -505,7 +505,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .footer-brand img{height:35px;width:auto;display:block}
 .footer-legal{
   font-family:'Montserrat',sans-serif;
-  font-size:10px;font-weight:400;line-height:1.5;
+  font-size:14px;font-weight:400;line-height:1.5;   /* Figma desktop: 14px */
   color:#fff;max-width:1049px;
 }
 /* Stripes keep the Figma block's 1440:171 proportion at every width
@@ -574,6 +574,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .footer{padding:12px 0 0}
   .footer-brand{padding:0 16px;gap:12px}
   .footer-brand img{height:23px}
+  .footer-legal{font-size:10px}   /* Figma mobile: 10px */
 }
 </style>
 </head>
@@ -1909,7 +1910,7 @@ void main(){
   const ctx = canvas.getContext('2d');
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
   const COLORS = ['#360084', '#8F0178', '#DF1A58', '#F5B345'];
-  const REVEAL_DUR = 2600, STAGGER = 170;
+  const FORM_DUR = 3000, DISS_DUR = 1200, STAGGER = 170;
   const easeIO = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
 
   let W = 0, H = 0;
@@ -1925,7 +1926,7 @@ void main(){
   ];
   const bars = SHAPES.map(s => ({
     color: s.color, offY: s.offY, path: new Path2D(s.d),
-    dots: [], progress: 0, startTime: 0, running: false,
+    dots: [], prog: 0, from: 0, target: 0, startTime: 0,
   }));
   let scaleX = 1, scaleY = 1, cell = 4;
 
@@ -1935,7 +1936,8 @@ void main(){
     W = Math.round(cssW * DPR); H = Math.round(cssH * DPR);
     canvas.width = W; canvas.height = H;
     scaleX = W / NATIVE_W; scaleY = H / NATIVE_H;
-    cell = Math.max(3, Math.round(H * 0.017));
+    // finer grid = smoother halftone texture
+    cell = Math.max(3, Math.round(H * 0.014));
     // Precompute each band's halftone dot positions once: rasterize the exact
     // path at canvas scale, then keep every halftone-grid point inside it.
     const off = document.createElement('canvas');
@@ -1961,7 +1963,7 @@ void main(){
   }
 
   function drawBar(b) {
-    const prog = b.progress;
+    const prog = b.prog;
     if (prog <= 0) return;
     // Reveal sweeps by X position, left -> right, matching the marquee
     // stripes' solid-stroke-chased-by-halftone look.
@@ -1990,11 +1992,15 @@ void main(){
       if (x < solidEdge || x >= front) continue;
       const cov = (front - x) / band;
       const r = cov * maxR;
-      if (r < 0.4) continue;
+      if (r < 0.3) continue;
+      // fade dots toward the leading edge as well as shrinking them —
+      // reads much smoother than radius alone
+      ctx.globalAlpha = Math.min(1, cov * 1.6);
       ctx.beginPath();
       ctx.arc(x, dots[i + 1], r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.globalAlpha = 1;
   }
 
   let rafId = null;
@@ -2002,11 +2008,11 @@ void main(){
     ctx.clearRect(0, 0, W, H);
     let anyRunning = false;
     for (const b of bars) {
-      if (b.running) {
-        const t = Math.min((now - b.startTime) / REVEAL_DUR, 1);
-        b.progress = easeIO(Math.max(0, t));
-        if (t >= 1) { b.progress = 1; b.running = false; }
-        else anyRunning = true;
+      if (b.prog !== b.target) {
+        const dur = b.target === 1 ? FORM_DUR : DISS_DUR;
+        const t = (now - b.startTime) / dur;
+        if (t >= 1) { b.prog = b.target; }
+        else { b.prog = b.from + (b.target - b.from) * easeIO(Math.max(0, t)); anyRunning = true; }
       }
       drawBar(b);
     }
@@ -2015,28 +2021,33 @@ void main(){
 
   build();
 
-  let started = false;
-  function start() {
-    if (started) return;
-    started = true;
+  // Reveal when the footer scrolls into view; dissolve back into halftone
+  // when it leaves — mirroring the marquee stripes' scroll behavior.
+  // Forming runs purple-first, dissolving yellow-first.
+  function animateTo(target) {
     const now = performance.now();
-    bars.forEach((b, i) => { b.running = true; b.startTime = now + i * STAGGER; b.progress = 0; });
+    bars.forEach((b, i) => {
+      const order = target === 1 ? i : (bars.length - 1 - i);
+      b.from = b.prog;
+      b.target = target;
+      b.startTime = now + order * STAGGER;
+    });
     if (rafId === null) rafId = requestAnimationFrame(tick);
   }
 
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver(entries => {
-      for (const e of entries) if (e.isIntersecting) { start(); io.disconnect(); }
-    }, { threshold: 0.3 });
+      for (const e of entries) animateTo(e.isIntersecting ? 1 : 0);
+    }, { threshold: 0.15 });
     io.observe(canvas);
-  } else { start(); }
+  } else { animateTo(1); }
 
   let resizeTimer = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       build();
-      if (rafId === null && started) { ctx.clearRect(0, 0, W, H); for (const b of bars) drawBar(b); }
+      if (rafId === null) { ctx.clearRect(0, 0, W, H); for (const b of bars) drawBar(b); }
     }, 120);
   });
 })();
