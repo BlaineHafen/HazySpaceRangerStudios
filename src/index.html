@@ -1588,25 +1588,52 @@ void main(){
       ctx.stroke();
     }
 
-    // halftone band: rows of dots across the bar width, shrinking toward the
-    // leading edge so the bar "forms" out of dots as it sweeps along its length
+    // halftone band: dots on a FIXED screen-space grid, masked by distance to
+    // the bar's centerline. The old per-segment dot rows rotated 45° at the
+    // elbow, leaving a wedge-shaped seam every time the band swept the corner
+    // (visible during the reveal and every dissolve/re-form). A fixed grid is
+    // continuous through the bend — including the miter-corner region — so
+    // the band flows around the elbow seamlessly.
     const cell = b.barW * 0.13;
     const maxR = cell * 0.5;
     const halfW = b.barW * 0.5;
     ctx.fillStyle = b.color;
     const from = Math.max(0, solidLen);
     const to = Math.min(revealed, b.L);
-    for (let s = from; s < to; s += cell) {
-      const cov = Math.max(0, Math.min(1, (revealed - s) / band));
-      const r = cov * maxR;
-      if (r < 0.4) continue;
-      const p = at(b, s);
-      const nx = -p.ty, ny = p.tx;                 // unit normal across the bar
-      const rowShift = (((s / cell) | 0) % 2) ? cell * 0.5 : 0;
-      for (let o = -halfW; o <= halfW; o += cell) {
-        ctx.beginPath();
-        ctx.arc(p.x + nx * (o + rowShift), p.y + ny * (o + rowShift), r, 0, Math.PI * 2);
-        ctx.fill();
+    if (to > from) {
+      const pA = at(b, from), pB = at(b, to);
+      const xs = [pA.x, pB.x], ys = [pA.y, pB.y];
+      if (from < b.cum[1] && to > b.cum[1]) { xs.push(b.pts[1].x); ys.push(b.pts[1].y); }
+      const pad2 = halfW + cell;
+      const minX = Math.min.apply(null, xs) - pad2, maxX = Math.max.apply(null, xs) + pad2;
+      const minY = Math.max(-pad2, Math.min.apply(null, ys) - pad2);
+      const maxY = Math.min(H, Math.max.apply(null, ys) + pad2);
+      const l0 = b.cum[1], l1 = b.cum[2] - b.cum[1];
+      const u0x = (b.pts[1].x - b.pts[0].x) / l0, u0y = (b.pts[1].y - b.pts[0].y) / l0;
+      const u1x = (b.pts[2].x - b.pts[1].x) / l1, u1y = (b.pts[2].y - b.pts[1].y) / l1;
+      for (let gy = Math.floor(minY / cell) * cell; gy <= maxY; gy += cell) {
+        const shift = (((gy / cell) | 0) % 2) ? cell * 0.5 : 0;
+        for (let gx = Math.floor(minX / cell) * cell + shift; gx <= maxX; gx += cell) {
+          const rx0 = gx - b.pts[0].x, ry0 = gy - b.pts[0].y;
+          const t0 = rx0 * u0x + ry0 * u0y;            // arc position on seg 0
+          const q0 = Math.abs(-rx0 * u0y + ry0 * u0x); // perp distance to seg 0
+          const rx1 = gx - b.pts[1].x, ry1 = gy - b.pts[1].y;
+          const t1 = rx1 * u1x + ry1 * u1y;
+          const q1 = Math.abs(-rx1 * u1y + ry1 * u1x);
+          let s = -1, dist = 1e9;
+          if (t0 >= 0 && t0 <= l0 && q0 <= halfW) { s = t0; dist = q0; }
+          if (t1 >= 0 && t1 <= l1 && q1 <= halfW && q1 < dist) { s = l0 + t1; }
+          // miter-corner region: past seg 0's end, before seg 1's start,
+          // within a bar-width of BOTH centerlines
+          if (s < 0 && t0 > l0 && t1 < 0 && q0 <= halfW && q1 <= halfW) { s = l0; }
+          if (s < 0 || s < from || s >= to) continue;
+          const cov = Math.max(0, Math.min(1, (revealed - s) / band));
+          const r = cov * maxR;
+          if (r < 0.4) continue;
+          ctx.beginPath();
+          ctx.arc(gx, gy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
   }
