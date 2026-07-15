@@ -508,7 +508,9 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   font-size:10px;font-weight:400;line-height:1.5;
   color:#fff;max-width:1049px;
 }
-#footer-stripes{display:block;width:100%;height:171px;margin-top:8px}
+/* Stripes keep the Figma block's 1440:171 proportion at every width
+   (desktop and mobile frames share the same ratio) */
+#footer-stripes{display:block;width:100%;aspect-ratio:1440/171;height:auto;margin-top:8px}
 
 /* ===================== RESPONSIVE ===================== */
 @media(max-width:768px){
@@ -527,42 +529,51 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .hero-logo{width:100px;height:100px;margin-bottom:24px}
   .hero-headline{font-size:32px;white-space:normal}
   .hero-body{font-size:16px}
-  .transition{min-height:380px;gap:16px}
-  .transition-line{height:130px}
-  /* extra bottom space so the ant's legs sit well clear of the iOS Safari
-     bottom toolbar / home indicator that overlays the bottom of the page */
-  .celestra{flex-direction:column;align-items:flex-start;padding:80px 20px 180px;min-height:0}
-  .celestra h2{font-size:28px}
-  .celestra p{font-size:16px}
-  /* mobile: the star/particle ant sits below the text, sized to the ant
-     CREATURE in the comp (~70% of the viewport, not the full frame), centred */
-  .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(300px,72vw);aspect-ratio:1/1;height:auto;margin-top:32px}
+  /* Transition dividers — Figma mobile: 100px lines, 20px gap, 14px label */
+  .transition{min-height:0;padding:40px 0;gap:20px}
+  .transition-line{height:100px}
+  .transition h3{font-size:14px}
+  /* Project Celestra — Figma mobile: p20, gap 40, headline/body tight, ant 280x269 */
+  .celestra{flex-direction:column;align-items:flex-start;padding:20px 20px 60px;min-height:0;gap:40px}
+  .celestra h2{font-size:24px;margin-bottom:0}
+  .celestra p{font-size:14px}
+  .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(280px,88vw);aspect-ratio:280/269;height:auto;margin-top:0}
   .hero-cta{display:inline-flex}
-  /* Team section mobile */
-  .team{padding:80px 20px;gap:40px}
+  /* Team section — Figma mobile: p20, 20px rhythm, name/title gap 4 */
+  .team{padding:20px;gap:20px}
   .team h2{font-size:24px}
-  .team-grid{flex-direction:column;gap:60px;align-items:center}
+  .team-grid{flex-direction:column;gap:20px;align-items:center}
   .team-member{width:100%;max-width:280px}
   .portrait-anchor{width:260px;height:260px}
   .team-member-name{font-size:20px}
-  .team-member-title{font-size:14px}
-  /* Mission section mobile */
-  .mission{padding:0 20px 80px;gap:10px}
+  .team-member-title{font-size:14px;margin-top:-16px}  /* 20px flex gap -> 4px */
+  /* Mission — Figma mobile: heading/body adjacent, planet 280x140, 20px above */
+  .mission{padding:20px 20px 20px;gap:0}
   .mission h2{font-size:24px}
   .mission p{font-size:14px}
-  .planet-anchor{width:min(340px,88vw);height:auto;margin-top:30px}  /* aspect-ratio inherited */
-  /* Interim mobile treatment for new sections (proper mobile designs TBD) */
-  .orbit{padding:80px 20px;gap:40px}
+  .planet-anchor{width:min(280px,88vw);height:auto;margin-top:20px}  /* aspect-ratio inherited */
+  /* Stay In Orbit — Figma mobile: 2x2 icon grid, no handles, icons ~60px */
+  .orbit{padding:20px;gap:28px}
+  .orbit-head{gap:0}
   .orbit h2{font-size:24px}
-  .orbit p{font-size:16px}
-  .social-grid{gap:48px}
-  .social-icon{height:64px}
-  .social-icon svg{height:56px;width:auto}
-  .social-handle{font-size:13px}
-  .outthere{padding:120px 20px 20px}
-  .footer-brand{padding:0 20px}
-  .footer-brand img{height:28px}
-  #footer-stripes{height:110px}
+  .orbit p{font-size:14px}
+  .social-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;width:min(280px,100%)}
+  .social-group{gap:0}
+  .social-group:nth-child(odd){align-items:flex-end}
+  .social-group:nth-child(even){align-items:flex-start}
+  .social-handle{display:none}
+  .social-icon{height:60px;align-items:center}
+  .social-group:nth-child(1) .social-icon svg{height:60px;width:auto}
+  .social-group:nth-child(2) .social-icon svg{height:60px;width:auto}
+  .social-group:nth-child(3) .social-icon svg{height:54px;width:auto}
+  .social-group:nth-child(4) .social-icon svg{height:50px;width:auto}
+  /* Out There — Figma mobile: px20 py60, full-width anchor (same aspect) */
+  .outthere{padding:60px 20px}
+  .outthere-anchor{width:min(280px,100%)}
+  /* Footer — Figma mobile: py12, brand px16 gap12, wordmark ~23px */
+  .footer{padding:12px 0 0}
+  .footer-brand{padding:0 16px;gap:12px}
+  .footer-brand img{height:23px}
 }
 </style>
 </head>
