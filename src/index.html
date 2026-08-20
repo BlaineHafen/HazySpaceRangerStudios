@@ -530,7 +530,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   z-index:2;
   width:100%;
   background:transparent;
-  padding:200px 80px 40px;
+  /* Figma's Out There section is 960px tall around the 644x560 artwork:
+     200px of clearance above AND below, so the lettering isn't crowded
+     against the footer's racing stripes. */
+  padding:200px 80px;
   display:flex;
   justify-content:center;
 }
