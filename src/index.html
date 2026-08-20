@@ -10,8 +10,8 @@
 <title>Hazy Space Ranger Studios</title>
 <!-- PNG favicon rebuilt to fill the tile: the old SVG had ~65px of padding
      inside a full-circle background, which read as empty space in the tab -->
-<link rel="icon" type="image/png" href="assets/favicon.png?v=2">
-<script type="importmap">{"imports":{"three":"./assets/vendor/three.module.js"}}</script>
+<link rel="icon" type="image/png" href="assets/favicon.png?v=3">
+<script type="importmap">{"imports":{"three":"./assets/vendor/three.module.min.js"}}</script>
 <!-- Lenis virtual scroll: page position is animated inside our own rAF, so the
      WebGL particles and the page content move in the SAME frame (no scroll lag) -->
 <script src="assets/vendor/lenis.min.js"></script>
@@ -840,7 +840,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 <!-- Footer -->
 <footer class="footer">
   <div class="footer-brand">
-    <img src="assets/footer-wordmark.png" alt="Hazy Space Ranger Studios" />
+    <img src="assets/footer-wordmark.webp" alt="Hazy Space Ranger Studios" width="600" height="70" />
     <p class="footer-legal">© 2026 Hazy Space Ranger Studios LLC. All rights reserved. "Hazy Space Ranger Studios," "Out There," and "Project Celestra" are trademarks of Hazy Space Ranger Studios LLC, Chicago, IL. This site sets no cookies and we collect no personal information. Fonts and code libraries load from third-party services, which receive your IP address.</p>
   </div>
   <canvas id="footer-stripes"></canvas>
@@ -1568,11 +1568,11 @@ void main(){
   // same particle count, same shader, same brightness encoding, same feel.
   const portraitUpdaters = [
     createPortrait('assets/ant-mask.png?v=5',       'celestra-ant'),
-    createPortrait('assets/team-blaine.png?v=5',    'portrait-blaine'),
-    createPortrait('assets/team-donnovan.png?v=5',  'portrait-donnovan'),
-    createPortrait('assets/team-pete.png?v=5',      'portrait-pete'),
-    createPortrait('assets/planet.png?v=5',         'portrait-planet'),
-    createPortrait('assets/out-there.png?v=5',      'portrait-outthere'),
+    createPortrait('assets/team-blaine.webp?v=6',   'portrait-blaine'),
+    createPortrait('assets/team-donnovan.webp?v=6', 'portrait-donnovan'),
+    createPortrait('assets/team-pete.webp?v=6',     'portrait-pete'),
+    createPortrait('assets/planet.webp?v=6',        'portrait-planet'),
+    createPortrait('assets/out-there.webp?v=6',     'portrait-outthere'),
   ];
 
   // Track how many portraits are actively assembled so we can dim background stars
@@ -2029,12 +2029,16 @@ void main(){
     color: s.color, offY: s.offY, path: new Path2D(s.d),
     dots: [], prog: 0, from: 0, target: 0, startTime: 0,
   }));
-  let scaleX = 1, scaleY = 1, cell = 4;
+  let scaleX = 1, scaleY = 1, cell = 4, built = false;
 
   function build() {
     const cssW = document.documentElement.clientWidth || window.innerWidth;
     const cssH = canvas.clientHeight || 171;
     W = Math.round(cssW * DPR); H = Math.round(cssH * DPR);
+    // Layout may not have settled (or the tab may be hidden), in which case the
+    // canvas is zero-sized and getImageData below throws IndexSizeError.
+    // Leave built=false and try again when the footer is next animated.
+    if (W < 1 || H < 1) { built = false; return; }
     canvas.width = W; canvas.height = H;
     scaleX = W / NATIVE_W; scaleY = H / NATIVE_H;
     // finer grid = smoother halftone texture
@@ -2061,6 +2065,7 @@ void main(){
         }
       }
     }
+    built = true;
   }
 
   function drawBar(b) {
@@ -2126,6 +2131,13 @@ void main(){
   // when it leaves — mirroring the marquee stripes' scroll behavior.
   // Forming runs purple-first, dissolving yellow-first.
   function animateTo(target) {
+    // build() bails when the page has no layout yet (hidden tab, pre-paint).
+    // Keep retrying on later frames so the bands can never end up permanently
+    // blank just because the first attempt landed too early.
+    if (!built) {
+      build();
+      if (!built) { requestAnimationFrame(() => animateTo(target)); return; }
+    }
     const now = performance.now();
     bars.forEach((b, i) => {
       const order = target === 1 ? i : (bars.length - 1 - i);
