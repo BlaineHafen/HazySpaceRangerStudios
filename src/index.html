@@ -82,7 +82,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .nav-links a::after{content:'';display:block;width:100%;height:2px;transform:scaleX(0);transition:transform .3s}
 .nav-links a:hover{color:#fff}
 .nav-links a:hover::after{transform:scaleX(1)}
-.nav-links a[href="#games"]::after{background:#360084}
+.nav-links a[href="#celestra"]::after{background:#360084}
 .nav-links a[href="#about"]::after{background:#8F0178}
 .nav-links a[href="#crew"]::after{background:#DF1A58}
 
@@ -306,6 +306,22 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .hero-cta.visible{opacity:1}
 .hero-cta:hover,.hero-cta:active{color:#fff;border-color:#fff}
 
+/* Figma "Primary CTA": bordered black chip, Anta 20px. Solid infill so the
+   starfield doesn't read through the button. */
+.primary-cta{
+  align-self:flex-start;
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-top:20px;              /* Figma: 20px between copy block and CTA */
+  padding:12px;
+  background:#050505;
+  border:1px solid #a7a7a7;
+  color:#a7a7a7;
+  font-family:'Anta',sans-serif;font-size:20px;
+  text-decoration:none;
+  transition:color .3s, border-color .3s;
+}
+.primary-cta:hover,.primary-cta:active{color:#fff;border-color:#fff}
+
 /* ===================== THE TEAM SECTION ===================== */
 .team{
   position:relative;
@@ -372,12 +388,11 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   z-index:2;
   width:100%;
   background:transparent;
-  padding:0 80px 120px;
+  padding:0 80px;
   display:flex;
   flex-direction:column;
   align-items:center;
-  /* Figma: 10px between heading and body copy; the planet then sits 80px
-     below the text block (10 + 70 margin on the anchor) */
+  /* Figma: 10px between heading and body copy */
   gap:10px;
   overflow:hidden;
 }
@@ -410,6 +425,44 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   margin-top:70px;   /* 10px flex gap + 70px = Figma's 80px text->planet gap */
   pointer-events:none;flex-shrink:0;
 }
+
+/* ===================== OUR VALUES SECTION ===================== */
+.values{
+  position:relative;
+  z-index:2;
+  width:100%;
+  background:transparent;
+  /* Figma: 80px below the mission block, 120px above the section end; the
+     planet then sits 80px below the list (10 gap + 70 anchor margin) */
+  padding:80px 80px 120px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  overflow:hidden;
+}
+.values h2{
+  font-family:'Anta',sans-serif;
+  font-size:48px;
+  font-weight:400;
+  color:#fff;
+  text-align:center;
+}
+.values-list{
+  font-family:'Montserrat',sans-serif;
+  font-size:24px;
+  font-weight:400;
+  line-height:1.4;
+  color:#fff;
+  max-width:800px;
+  width:100%;
+  list-style:disc;
+  padding-left:1.5em;   /* Figma indents the marker by 1.5x the font size */
+  display:flex;
+  flex-direction:column;
+  gap:1.4em;            /* Figma separates each bullet with a blank line */
+}
+.values-list strong{font-weight:700}
 
 /* ===================== STAY IN ORBIT (SOCIAL) ===================== */
 .orbit{
@@ -513,6 +566,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 #footer-stripes{display:block;width:100%;aspect-ratio:1440/171;height:auto;margin-top:8px}
 
 /* ===================== RESPONSIVE ===================== */
+/* .hero has 160px side padding; the 965px nowrap headline needs >=1285px */
+@media(max-width:1300px){
+  .hero-headline{white-space:normal}
+}
 @media(max-width:768px){
   .nav{padding:16px}
   .nav-logo{width:auto}
@@ -537,6 +594,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .celestra{flex-direction:column;align-items:flex-start;padding:20px 20px 60px;min-height:0;gap:40px}
   .celestra h2{font-size:24px;margin-bottom:0}
   .celestra p{font-size:14px}
+  .celestra .primary-cta{font-size:18px}
   .celestra-ant{position:relative;right:auto;top:auto;transform:none;align-self:center;width:min(280px,88vw);aspect-ratio:280/269;height:auto;margin-top:0}
   .hero-cta{display:inline-flex}
   /* Team section — Figma mobile: p20, 20px rhythm, name/title gap 4 */
@@ -547,11 +605,15 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   .portrait-anchor{width:260px;height:260px}
   .team-member-name{font-size:20px}
   .team-member-title{font-size:14px;margin-top:-16px}  /* 20px flex gap -> 4px */
-  /* Mission — Figma mobile: heading/body adjacent, planet 280x140, 20px above */
-  .mission{padding:20px 20px 20px;gap:0}
+  /* Mission — Figma mobile: heading/body adjacent, 40px down to Our Values */
+  .mission{padding:20px 20px 0;gap:0}
   .mission h2{font-size:24px}
   .mission p{font-size:14px}
-  .planet-anchor{width:min(280px,88vw);height:auto;margin-top:20px}  /* aspect-ratio inherited */
+  /* Our Values — Figma mobile: 40px above the list, planet 280x140 below */
+  .values{padding:40px 20px 20px;gap:0}
+  .values h2{font-size:24px}
+  .values-list{font-size:14px}
+  .planet-anchor{width:min(280px,88vw);height:auto;margin-top:40px}  /* aspect-ratio inherited */
   /* Stay In Orbit — Figma mobile: 2x2 icon grid, no handles, icons ~60px */
   .orbit{padding:20px;gap:28px}
   .orbit-head{gap:0}
@@ -596,18 +658,18 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     <img src="stamp-logo.svg" alt="HSRS Logo" />
   </div>
   <ul class="nav-links">
-    <li><a href="#games">Games</a></li>
+    <li><a href="#celestra">Games</a></li>
     <li><a href="#about">About</a></li>
-    <li><a href="#crew">Crew</a></li>
+    <li><a href="#crew">Mission Control</a></li>
   </ul>
-  <a href="#" class="nav-cta">
+  <a href="#crew" class="nav-cta">
     <!-- each shape overlaps its right neighbor by 1 viewBox unit so the shared
          diagonal edges can't antialias into hairline seams -->
     <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H1L49 46H0V0Z" fill="#360084"/></svg></div>
     <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H49L97 46H48L0 0Z" fill="#8F0178"/></svg></div>
     <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H97L145 46H96L48 0Z" fill="#DF1A58"/></svg></div>
     <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
-    <span>Join The Crew</span>
+    <span>Stay In Orbit</span>
   </a>
 
   <!-- Mobile-only: cursive wordmark + hamburger -->
@@ -618,10 +680,10 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 
   <!-- Mobile dropdown menu -->
   <div class="nav-menu" id="nav-menu">
-    <a href="#games">Games</a>
+    <a href="#celestra">Games</a>
     <a href="#about">About</a>
-    <a href="#crew">Crew</a>
-    <a href="#" class="nav-menu-cta">Join The Crew</a>
+    <a href="#crew">Mission Control</a>
+    <a href="#crew" class="nav-menu-cta">Stay In Orbit</a>
   </div>
 </nav>
 
@@ -641,7 +703,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     </div>
 
     <!-- Mobile-only marquee CTA -->
-    <a href="#" class="hero-cta" id="hero-cta">Join The Crew</a>
+    <a href="#crew" class="hero-cta" id="hero-cta">Stay In Orbit</a>
   </div>
 </section>
 
@@ -656,7 +718,8 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 <section class="celestra" id="celestra">
   <div class="celestra-text">
     <h2>Project Celestra</h2>
-    <p>Our first voyage. A tabletop adventure charting the far edge of the known galaxy — strange worlds, fierce crews, and everything waiting Out There. Transmissions incoming.</p>
+    <p>Project Celestra is a strategy game for 3 to 6 players where rival ant colonies clash for territorial dominance on a hex battlefield. Players deploy ants, build powerful decks, and fight to hold the most valuable ground. Push toward the center for maximum points or hang back and build an unstoppable army. Every session plays differently, every decision matters. Currently in development by Hazy Space Ranger Studios LLC. Follow us on social media to be the first to know when we launch on Kickstarter.</p>
+    <a href="#crew" class="primary-cta">Stay In Orbit</a>
   </div>
   <!-- the starfield assembles into the ant here (desktop + mobile) -->
   <div class="celestra-ant" id="celestra-ant"></div>
@@ -694,7 +757,22 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 <!-- Our Mission Section -->
 <section class="mission" id="mission">
   <h2>Our Mission</h2>
-  <p>We're a Chicago-based tabletop game studio on a mission to build worlds worth exploring. Every game we make is a voyage into the unknown — strange galaxies, fierce crews, and stories that reach far beyond the event horizon.</p>
+  <p>Some games changed the way we see the world. The people who made them probably had no idea what they were giving us. We started Hazy Space Ranger Studios to be part of that community. To make something small and leave it with someone forever.</p>
+</section>
+
+<!-- Our Values Section (the planet closes out the About block below it) -->
+<section class="values" id="values">
+  <h2>Our Values</h2>
+  <ul class="values-list">
+    <li><strong>We make things we are proud of.</strong> Quality is not a checkbox. Every game we ship has to meet the standard we would hold anyone else to.</li>
+    <li><strong>The people who build something deserve to share in what it becomes.</strong> We structure our studio around that belief and we always will.</li>
+    <li><strong>We give back to the community that gave us everything.</strong> The tabletop gaming world is what made us want to do this. We support it, participate in it, and never take it for granted.</li>
+    <li><strong>Chicago is our home and we take that seriously.</strong> We support local game stores, local artists, and local causes because the city we work in deserves to feel that we are part of it.</li>
+    <li><strong>We are honest with our players.</strong> About what is in the box, about where we are in development, about what we got wrong and how we fixed it.</li>
+    <li><strong>We take the work seriously and ourselves lightly.</strong> Great games require craft, discipline, and genuine care. They do not require ego.</li>
+    <li><strong>Small studios can make big things.</strong> We believe that independent creators working with intention can build experiences that stand alongside anything in the industry.</li>
+    <li><strong>We are in this for the long game.</strong> Not just one title. One studio, many games, built over time with the same people and the same standards.</li>
+  </ul>
   <div class="planet-anchor" id="portrait-planet"></div>
 </section>
 
@@ -709,7 +787,7 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 <section class="orbit" id="crew">
   <div class="orbit-head">
     <h2>Stay In Orbit</h2>
-    <p>Follow Hazy Space Ranger Studios on social media to catch our latest transmissions, see what's happening behind the scenes, and get the occasional peek at what we're building next. From big milestones to small wins, we'd love to have you along for the ride as we chart this journey together.</p>
+    <p>Follow along for behind the scenes updates, early peeks at what we are building, and the occasional transmission from deep space. We would love to have you with us for the journey.</p>
   </div>
   <div class="social-grid">
     <a class="social-group" href="https://www.tiktok.com/@hazyspacerangerstudios?_r=1&amp;_t=ZT-982Trlrng7B" target="_blank" rel="noopener">
@@ -753,8 +831,8 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   const FORM_DELAY = 300;       // wait before stripes/logo appear
   const TYPE_DELAY = 1100;      // wait before typing begins
 
-  const headlineText = "Something's Out There";
-  const bodyText = 'Hazy Space Ranger Studios is a Chicago tabletop game studio building worlds worth exploring. Our first voyage is right across the event horizon so stay tuned.';
+  const headlineText = "Something's stirring in the stars";
+  const bodyText = 'Hazy Space Ranger Studios is a Chicago based indie game studio on a mission to create adventures worth remembering. Our first expedition is already underway, so keep your eyes on the stars. More transmissions to follow.';
 
   const heroLogo = document.getElementById('hero-logo');
   const heroText = document.getElementById('hero-text');
