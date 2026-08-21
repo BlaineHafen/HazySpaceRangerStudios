@@ -107,23 +107,41 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .nav-links a[href="#crew"]::after{background:#DF1A58}
 
 /* CTA button */
-.nav-cta{font-family:'Anta',sans-serif;font-size:20px;padding:12px;background:none;color:#a7a7a7;border:1px solid #a7a7a7;text-decoration:none;transition:color .3s, border-color .3s;cursor:pointer;position:relative;overflow:hidden}
-.nav-cta span{position:relative;z-index:1}
-.nav-cta:hover{color:#fff;border-color:#fff}
-.nav-cta .stripe{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;transition:transform .4s ease}
-.nav-cta .stripe svg{display:block;width:100%;height:100%}
-.nav-cta .stripe-1{transform:translate(-33.3%,-100%)}
-.nav-cta:hover .stripe-1{transform:translate(0,0)}
-.nav-cta .stripe-2{transform:translate(33.3%,100%)}
-.nav-cta:hover .stripe-2{transform:translate(0,0)}
-.nav-cta .stripe-3{transform:translate(-33.3%,-100%)}
-.nav-cta:hover .stripe-3{transform:translate(0,0)}
-.nav-cta .stripe-4{transform:translate(33.3%,100%)}
-.nav-cta:hover .stripe-4{transform:translate(0,0)}
-.nav-cta .stripe-1{transition-delay:0s}
-.nav-cta .stripe-2{transition-delay:.06s}
-.nav-cta .stripe-3{transition-delay:.12s}
-.nav-cta .stripe-4{transition-delay:.18s}
+/* ============ "Stay In Orbit" CTA — shared by every instance ============
+   Figma "Primary CTA / State=Hover": white border and white label over the
+   four racing-stripe colours sliding in from alternating corners. The nav,
+   mobile menu, hero and Project Celestra buttons all use this class so their
+   hover states cannot drift apart again. */
+.cta{
+  position:relative;overflow:hidden;
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:12px;
+  background:#050505;              /* solid infill so stars don't show through */
+  border:1px solid #a7a7a7;
+  color:#a7a7a7;
+  font-family:'Anta',sans-serif;font-size:20px;
+  text-decoration:none;cursor:pointer;
+  transition:color .3s, border-color .3s;
+}
+.cta:hover,.cta:active,.cta:focus-visible{color:#fff;border-color:#fff}
+/* label rides above the stripes */
+.cta-label{position:relative;z-index:1}
+.cta .stripe{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;transition:transform .4s ease}
+.cta .stripe svg{display:block;width:100%;height:100%}
+/* bands park off-frame in alternating directions and land in sequence, so the
+   fill reads as a diagonal sweep rather than one flat wipe */
+.cta .stripe-1{transform:translate(-33.3%,-100%);transition-delay:0s}
+.cta .stripe-2{transform:translate(33.3%,100%);transition-delay:.06s}
+.cta .stripe-3{transform:translate(-33.3%,-100%);transition-delay:.12s}
+.cta .stripe-4{transform:translate(33.3%,100%);transition-delay:.18s}
+.cta:hover .stripe,
+.cta:active .stripe,
+.cta:focus-visible .stripe{transform:translate(0,0)}
+@media(prefers-reduced-motion:reduce){
+  .cta .stripe{transition:none}
+}
+/* nav bar is already solid #050505, so this one needs no infill of its own */
+.nav-cta{background:none}
 
 /* Mobile nav pieces — hidden on desktop, shown via the 768px breakpoint */
 .nav-cursive{display:none;font-family:'Dancing Script',cursive;font-weight:600;font-size:24px;color:#fff;line-height:1;pointer-events:none}
@@ -144,7 +162,8 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
 .nav-menu.open{transform:none;opacity:1;pointer-events:auto}
 .nav-menu a{font-family:'Anta',sans-serif;font-size:18px;color:#a7a7a7;text-decoration:none;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06);transition:color .3s}
 .nav-menu a:hover,.nav-menu a:active{color:#fff}
-.nav-menu .nav-menu-cta{margin-top:12px;border:1px solid #a7a7a7;border-bottom:1px solid #a7a7a7;text-align:center;padding:12px;color:#fff}
+/* beats ".nav-menu a" on specificity so the shared .cta look wins here */
+.nav-menu .nav-menu-cta{margin-top:12px;padding:12px;font-size:18px;border:1px solid #a7a7a7;color:#a7a7a7;align-self:stretch}
 
 /* ===================== HERO SECTION ===================== */
 .hero{
@@ -310,37 +329,18 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   pointer-events:none;
 }
 
-/* Mobile-only marquee CTA ("Join The Crew") */
+/* Mobile-only marquee CTA — Figma has no hero CTA on desktop. Inherits the
+   shared .cta look; only the fade-in and mobile sizing differ. */
 .hero-cta{
   display:none;
-  align-items:center;justify-content:center;
-  margin-top:28px;padding:12px 20px;
-  background:#050505;              /* solid black infill so stars don't show through */
-  border:1px solid #a7a7a7;
-  color:#a7a7a7;
-  font-family:'Anta',sans-serif;font-size:18px;
-  text-decoration:none;
+  margin-top:28px;padding:12px 20px;font-size:18px;
   opacity:0;
-  transition:opacity .5s ease, color .3s, border-color .3s, background .3s;
+  transition:opacity .5s ease, color .3s, border-color .3s;
 }
 .hero-cta.visible{opacity:1}
-.hero-cta:hover,.hero-cta:active{color:#fff;border-color:#fff}
 
-/* Figma "Primary CTA": bordered black chip, Anta 20px. Solid infill so the
-   starfield doesn't read through the button. */
-.primary-cta{
-  align-self:flex-start;
-  display:inline-flex;align-items:center;justify-content:center;
-  margin-top:20px;              /* Figma: 20px between copy block and CTA */
-  padding:12px;
-  background:#050505;
-  border:1px solid #a7a7a7;
-  color:#a7a7a7;
-  font-family:'Anta',sans-serif;font-size:20px;
-  text-decoration:none;
-  transition:color .3s, border-color .3s;
-}
-.primary-cta:hover,.primary-cta:active{color:#fff;border-color:#fff}
+/* Project Celestra CTA — shared .cta look, 20px below the copy block */
+.primary-cta{align-self:flex-start;margin-top:20px}
 
 /* ===================== THE TEAM SECTION ===================== */
 .team{
@@ -685,14 +685,14 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     <li><a href="#about">About</a></li>
     <li><a href="#crew">Mission Control</a></li>
   </ul>
-  <a href="#crew" class="nav-cta">
+  <a href="#crew" class="cta nav-cta">
     <!-- each shape overlaps its right neighbor by 1 viewBox unit so the shared
          diagonal edges can't antialias into hairline seams -->
     <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H1L49 46H0V0Z" fill="#360084"/></svg></div>
     <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H49L97 46H48L0 0Z" fill="#8F0178"/></svg></div>
     <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H97L145 46H96L48 0Z" fill="#DF1A58"/></svg></div>
     <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
-    <span>Stay In Orbit</span>
+    <span class="cta-label">Stay In Orbit</span>
   </a>
 
   <!-- Mobile-only: cursive wordmark + hamburger -->
@@ -706,7 +706,13 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     <a href="#celestra">Games</a>
     <a href="#about">About</a>
     <a href="#crew">Mission Control</a>
-    <a href="#crew" class="nav-menu-cta">Stay In Orbit</a>
+    <a href="#crew" class="cta nav-menu-cta">
+      <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H1L49 46H0V0Z" fill="#360084"/></svg></div>
+      <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H49L97 46H48L0 0Z" fill="#8F0178"/></svg></div>
+      <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H97L145 46H96L48 0Z" fill="#DF1A58"/></svg></div>
+      <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
+      <span class="cta-label">Stay In Orbit</span>
+    </a>
   </div>
 </nav>
 
@@ -726,7 +732,13 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
     </div>
 
     <!-- Mobile-only marquee CTA -->
-    <a href="#crew" class="hero-cta" id="hero-cta">Stay In Orbit</a>
+    <a href="#crew" class="cta hero-cta" id="hero-cta">
+      <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H1L49 46H0V0Z" fill="#360084"/></svg></div>
+      <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H49L97 46H48L0 0Z" fill="#8F0178"/></svg></div>
+      <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H97L145 46H96L48 0Z" fill="#DF1A58"/></svg></div>
+      <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
+      <span class="cta-label">Stay In Orbit</span>
+    </a>
   </div>
 </section>
 
@@ -742,7 +754,13 @@ body{background:#050505;font-family:'Outfit',sans-serif;color:rgba(255,255,255,.
   <div class="celestra-text">
     <h2>Project Celestra</h2>
     <p>Project Celestra is a strategy game for 3 to 6 players where rival ant colonies clash for territorial dominance on a hex battlefield. Players deploy ants, build powerful decks, and fight to hold the most valuable ground. Push toward the center for maximum points or hang back and build an unstoppable army. Every session plays differently, every decision matters. Currently in development by Hazy Space Ranger Studios LLC. Follow us on social media to be the first to know when we launch on Kickstarter.</p>
-    <a href="#crew" class="primary-cta">Stay In Orbit</a>
+    <a href="#crew" class="cta primary-cta">
+      <div class="stripe stripe-1"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H1L49 46H0V0Z" fill="#360084"/></svg></div>
+      <div class="stripe stripe-2"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M0 0H49L97 46H48L0 0Z" fill="#8F0178"/></svg></div>
+      <div class="stripe stripe-3"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M48 0H97L145 46H96L48 0Z" fill="#DF1A58"/></svg></div>
+      <div class="stripe stripe-4"><svg preserveAspectRatio="none" viewBox="0 0 144 46" xmlns="http://www.w3.org/2000/svg"><path d="M96 0H144V46L96 0Z" fill="#F5B345"/></svg></div>
+      <span class="cta-label">Stay In Orbit</span>
+    </a>
   </div>
   <!-- the starfield assembles into the ant here (desktop + mobile) -->
   <div class="celestra-ant" id="celestra-ant"></div>
